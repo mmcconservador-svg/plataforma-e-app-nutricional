@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block title %}Dashboard{% endblock %}
+{% block content %}
+<div class="barra"><h1>Dashboard</h1>
+  <a class="btn" href="{{ url_for('paciente_novo') }}">+ Novo paciente</a></div>
+
+<div class="kpis">
+  <div class="kpi"><b>{{ pn.ativos }}</b><span>Pacientes ativos</span></div>
+  <div class="kpi"><b>{{ pn.aval_mes }}</b><span>Avaliações no mês</span></div>
+  <div class="kpi {{ 'alerta-kpi' if pn.sem_reav }}"><b>{{ pn.sem_reav }}</b><span>Sem reavaliação há +30 dias</span></div>
+  <div class="kpi {{ 'alerta-kpi' if pn.anam_pend }}"><b>{{ pn.anam_pend }}</b><span>Anamneses a revisar</span></div>
+  <div class="kpi {{ 'alerta-kpi' if abertas }}"><b>{{ abertas }}</b><span>Solicitações LGPD abertas</span></div>
+</div>
+
+<div class="duas">
+  <section class="cartao"><h2>Estado nutricional</h2>{% if graf_imc %}{{ graf_imc }}{% else %}<p class="suave">Sem avaliações ainda.</p>{% endif %}</section>
+  <section class="cartao"><h2>Acompanhamento</h2>{{ graf_prog }}</section>
+</div>
+
+<section class="cartao">
+  <h2>Automação: pendências e alertas</h2>
+  <p class="nota">Gerados por regras transparentes sobre os dados registrados. São sugestões para a sua avaliação — não são diagnóstico e nada é enviado ao paciente automaticamente.</p>
+  {% for nivel, p, txt in pn.tarefas %}
+    <div class="alerta {{ nivel }}"><a href="{{ url_for('paciente', pid=p.id) }}"><strong>{{ p.nome }}</strong></a> — {{ txt }}</div>
+  {% else %}<p class="suave">Nenhuma pendência. 🎉</p>{% endfor %}
+</section>
+{% endblock %}

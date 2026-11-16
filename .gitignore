@@ -1,0 +1,12 @@
+__pycache__/
+*.pyc
+.env
+instance/
+dados/
+chaves/
+*.db
+*.key
+.venv/
+venv/
+wheels/
+*.zip

@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block title %}Meu portal{% endblock %}
+{% block content %}
+<h1>Olá, {{ p.nome.split()[0] }}</h1>
+<div class="duas">
+  <section class="cartao">
+    <h2>Minha anamnese</h2>
+    {% if ana %}<p>Enviada em {{ ana.criado_em|dt }}. {{ 'Revisada pelo nutricionista.' if ana.revisada else 'Aguardando revisão.' }}</p>
+    {% else %}<p>Preencha sua ficha para que seu atendimento seja personalizado.</p>{% endif %}
+    <a class="btn" href="{{ url_for('portal_anamnese') }}">{{ 'Atualizar' if ana else 'Preencher' }}</a>
+  </section>
+  <section class="cartao">
+    <h2>Meus dados e direitos</h2>
+    <p>Veja, baixe, corrija ou peça a exclusão dos seus dados e gerencie suas autorizações.</p>
+    <a class="btn sec" href="{{ url_for('portal_meus_dados') }}">Abrir</a>
+  </section>
+</div>
+<section class="cartao">
+  <h2>Minhas avaliações</h2>
+  <table class="tabela">
+    <thead><tr><th>Data</th><th>Peso</th><th>IMC</th><th></th></tr></thead>
+    <tbody>
+    {% for a in avs %}
+      <tr><td>{{ a.data|dmy }}</td><td>{{ a.peso|br }} kg</td>
+        <td>{{ (a.peso / ((a.altura_cm/100)**2))|br }}</td>
+        <td><a href="{{ url_for('portal_avaliacao', aid=a.id) }}">Ver</a></td></tr>
+    {% else %}<tr><td colspan="4" class="suave">Seu nutricionista ainda não liberou avaliações.</td></tr>{% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endblock %}

@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block title %}Ativar acesso{% endblock %}
+{% block content %}
+<section class="cartao estreito">
+  <h1>Olá, {{ p.nome.split()[0] }}!</h1>
+  <p>Crie sua senha para acessar seu portal. Seu login será o e-mail <strong>{{ p.email }}</strong>.</p>
+  <form method="post">
+    <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+    <label>Senha (mín. 10 caracteres, com letras e números)
+      <input type="password" name="senha" required minlength="10" autocomplete="new-password"></label>
+    <label>Repita a senha <input type="password" name="conf" required minlength="10" autocomplete="new-password"></label>
+
+    <fieldset class="consent">
+      <legend>Autorizações (LGPD)</legend>
+      <label class="check"><input type="checkbox" name="c_saude" required>
+        <span><strong>Obrigatória:</strong> autorizo o tratamento dos meus dados pessoais e de saúde por
+        {{ clinic.nome_pro }} ({{ clinic.registro_pro }}) para fins de avaliação, acompanhamento e
+        orientação nutricional, conforme a <a href="{{ url_for('privacidade') }}" target="_blank">Política de Privacidade</a>.</span></label>
+      <label class="check"><input type="checkbox" name="c_comunicacao">
+        <span><em>Opcional:</em> aceito receber lembretes e comunicações por e-mail/WhatsApp.</span></label>
+      <p class="nota">Você pode revogar autorizações opcionais a qualquer momento em “Meus dados e direitos”.</p>
+    </fieldset>
+    <button class="btn" type="submit">Criar acesso</button>
+  </form>
+</section>
+{% endblock %}

@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+{% block title %}{{ titulo }}{% endblock %}
+{% block content %}
+<section class="cartao estreito">
+  <h1>{{ titulo }}</h1>
+  {% if msg %}<p>{{ msg }}</p>{% endif %}
+  <a class="btn sec" href="/">Voltar ao início</a>
+</section>
+{% endblock %}

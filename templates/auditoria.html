@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block title %}Auditoria{% endblock %}
+{% block content %}
+<h1>Registro de acessos e alterações</h1>
+<p class="suave">Últimos 300 eventos. O registro não contém conteúdo clínico, apenas quem fez o quê e quando.</p>
+<div class="cartao">
+<table class="tabela">
+  <thead><tr><th>Data/hora</th><th>Usuário</th><th>Ação</th><th>Entidade</th><th>IP</th><th>Detalhe</th></tr></thead>
+  <tbody>
+  {% for l in logs %}
+    <tr><td>{{ l.ts|dt }}</td><td>{{ l.user_id or '—' }}</td><td>{{ l.acao }}</td>
+      <td>{{ l.entidade or '' }}{{ ' #' ~ l.entidade_id if l.entidade_id }}</td><td>{{ l.ip }}</td><td>{{ l.detalhe }}</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% endblock %}

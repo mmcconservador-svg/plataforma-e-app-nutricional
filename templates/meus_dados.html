@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% block title %}Meus dados e direitos{% endblock %}
+{% block content %}
+<h1>Meus dados e direitos (LGPD)</h1>
+
+<section class="cartao">
+  <h2>Acesso e portabilidade</h2>
+  <p>Baixe uma cópia de todos os dados que mantemos sobre você, em formato estruturado.</p>
+  <a class="btn" href="{{ url_for('portal_exportar') }}">Baixar meus dados (JSON)</a>
+</section>
+
+<section class="cartao">
+  <h2>Minhas autorizações</h2>
+  <ul class="lista">
+    <li>Tratamento de dados de saúde — <strong>{{ 'autorizado' if consent.tratamento_saude else 'não autorizado' }}</strong>
+      (para revogar, use “Solicitar” abaixo)</li>
+    <li>Dado espiritual (opcional) — <strong>{{ 'autorizado' if consent.espiritualidade else 'não autorizado' }}</strong>
+      {% if consent.espiritualidade %}
+      <form method="post" action="{{ url_for('portal_revogar', tipo='espiritualidade') }}" class="inline">
+        <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+        <button class="btn sec pequeno" type="submit">Revogar e apagar</button></form>{% endif %}</li>
+    <li>Comunicações (opcional) — <strong>{{ 'autorizado' if consent.comunicacao else 'não autorizado' }}</strong>
+      {% if consent.comunicacao %}
+      <form method="post" action="{{ url_for('portal_revogar', tipo='comunicacao') }}" class="inline">
+        <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+        <button class="btn sec pequeno" type="submit">Revogar</button></form>{% endif %}</li>
+  </ul>
+</section>
+
+<section class="cartao">
+  <h2>Fazer uma solicitação</h2>
+  <form method="post" action="{{ url_for('portal_solicitar') }}">
+    <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+    <label>Tipo
+      <select name="tipo">
+        <option value="correcao">Corrigir dados incorretos ou desatualizados</option>
+        <option value="informacao">Informações sobre o uso e compartilhamento dos meus dados</option>
+        <option value="exclusao">Eliminar meus dados</option>
+        <option value="revogacao">Revogar a autorização de tratamento</option>
+      </select></label>
+    <label>Detalhes <textarea name="mensagem" rows="3" maxlength="2000"></textarea></label>
+    <button class="btn" type="submit">Enviar solicitação</button>
+  </form>
+  <p class="nota">Resposta em até 15 dias. Alguns dados do prontuário podem precisar ser mantidos por obrigação legal; nesse caso explicaremos o motivo.</p>
+  <h3>Minhas solicitações</h3>
+  <ul class="lista">
+  {% for s in p.solicitacoes %}
+    <li>{{ s.criado_em|dt }} — {{ s.tipo }} — <strong>{{ s.status }}</strong>{% if s.resposta %}<br><span class="suave">Resposta: {{ s.resposta }}</span>{% endif %}</li>
+  {% else %}<li class="suave">Nenhuma solicitação.</li>{% endfor %}
+  </ul>
+</section>
+<p><a href="{{ url_for('privacidade') }}">Ler a Política de Privacidade</a></p>
+{% endblock %}

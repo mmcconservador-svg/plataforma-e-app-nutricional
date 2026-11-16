@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% block title %}Avaliação {{ av.data|dmy }}{% endblock %}
+{% block content %}
+<div class="barra">
+  <div><h1>Avaliação de {{ av.data|dmy }}</h1><p class="suave">{{ p.nome }} · {{ p.codigo }}{% if r.idade is not none %} · {{ r.idade }} anos{% endif %}</p></div>
+  <div class="acoes">
+    <a class="btn sec" href="{{ url_for('portal_avaliacao_pdf', aid=av.id) if portal else url_for('avaliacao_pdf', pid=p.id, aid=av.id) }}" target="_blank">PDF</a>
+    <a class="btn sec" href="{{ url_for('portal_home') if portal else url_for('paciente', pid=p.id) }}">Voltar</a>
+  </div>
+</div>
+
+{% for a in r.avisos %}<div class="alerta aviso">{{ a }}</div>{% endfor %}
+
+<section class="cartao">
+  <h2>Antropometria</h2>
+  <table class="tabela">
+    <thead><tr><th>Indicador</th><th>Resultado</th><th>Classificação</th></tr></thead>
+    <tbody>
+      <tr><td>Peso / Altura</td><td>{{ av.peso|br }} kg / {{ av.altura_cm|br(0) }} cm</td><td></td></tr>
+      <tr><td>IMC</td><td>{{ r.imc|br }} kg/m²</td><td>{{ r.imc_class }}</td></tr>
+      <tr><td>Circunferência abdominal</td><td>{{ av.cintura|br }} cm</td><td>{{ r.cintura_risco }}</td></tr>
+      <tr><td>Relação cintura/quadril</td><td>{{ r.rcq|br(2) }}</td><td>{{ r.rcq_risco }}</td></tr>
+      <tr><td>Relação cintura/estatura</td><td>{{ r.rce|br(2) }}</td><td>{{ r.rce_risco }}</td></tr>
+      {% if r.massa_gorda is defined %}
+      <tr><td>% gordura</td><td>{{ av.gordura_pct|br }} %</td><td></td></tr>
+      <tr><td>Massa gorda / magra</td><td>{{ r.massa_gorda|br }} kg / {{ r.massa_magra|br }} kg</td><td></td></tr>
+      {% endif %}
+    </tbody>
+  </table>
+</section>
+
+{% if r.tmb is defined %}
+<section class="cartao">
+  <h2>Gasto energético e metas</h2>
+  <table class="tabela">
+    <tbody>
+      <tr><td>TMB (Mifflin-St Jeor)</td><td>{{ r.tmb|br(0) }} kcal</td></tr>
+      <tr><td>GET = TMB × {{ r.fa|br(3) }}</td><td>{{ r.get_kcal|br(0) }} kcal</td></tr>
+      <tr><td>VET = GET {{ '%+d'|format(av.ajuste_kcal) }} kcal</td><td><strong>{{ r.vet|br(0) }} kcal</strong></td></tr>
+      <tr><td>Carboidratos ({{ av.pct_carb|br(0) }}%)</td><td>{{ r.macros.carb_g|br(0) }} g</td></tr>
+      <tr><td>Proteínas ({{ av.pct_prot|br(0) }}%)</td><td>{{ r.macros.prot_g|br(0) }} g ({{ r.prot_g_kg|br(2) }} g/kg)</td></tr>
+      <tr><td>Lipídios ({{ av.pct_lip|br(0) }}%)</td><td>{{ r.macros.lip_g|br(0) }} g</td></tr>
+      <tr><td>Fibras (14 g/1000 kcal)</td><td>{{ r.fibra_g|br(0) }} g</td></tr>
+      <tr><td>Necessidade hídrica (35 ml/kg)</td><td>{{ (r.agua_ml/1000)|br(1) }} L</td></tr>
+    </tbody>
+  </table>
+</section>
+{% endif %}
+
+{% if av.observacoes %}<section class="cartao"><h2>Observações do profissional</h2><p class="pre">{{ av.observacoes }}</p></section>{% endif %}
+
+{% if not portal and not p.anonimizado_em %}
+<section class="cartao">
+  <p>Visível ao paciente no portal: <strong>{{ 'sim' if av.liberada else 'não' }}</strong>.
+    O paciente só vê o resultado depois que você validar e liberar.</p>
+  <form method="post" action="{{ url_for('avaliacao_liberar', pid=p.id, aid=av.id) }}">
+    <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+    <button class="btn" type="submit">{{ 'Ocultar do paciente' if av.liberada else 'Validar e liberar ao paciente' }}</button>
+  </form>
+</section>
+{% endif %}
+<p class="nota">Estimativas de apoio; válidas após revisão do nutricionista responsável. Não substituem avaliação clínica.</p>
+{% endblock %}

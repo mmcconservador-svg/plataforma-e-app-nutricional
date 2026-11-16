@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block title %}Avaliação integrativa{% endblock %}
+{% block content %}
+<div class="barra"><div><h1>Avaliação integrativa — {{ a.data|dmy }}</h1><p class="suave">{{ p.nome }} · {{ p.codigo }}</p></div>
+  <a class="btn sec" href="{{ url_for('paciente', pid=p.id) }}">Voltar</a></div>
+<section class="cartao">
+  <h2>Resultado {% if res.media is not none %}— média {{ res.media|br }}/10{% endif %}</h2>
+  {{ graf }}
+  <table class="tabela">
+    <thead><tr><th>Pilar</th><th>Nota</th><th>Δ vs. anterior</th><th>Observação</th></tr></thead>
+    <tbody>
+    {% for chave, rot, _s in pilares if chave in dados.notas %}
+      <tr><td>{{ rot }}</td><td>{{ dados.notas[chave] }}</td>
+        <td>{% if chave in comp %}{{ '%+d'|format(comp[chave]) }}{% else %}—{% endif %}</td>
+        <td>{{ dados.obs.get(chave,'') }}</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% if res.baixos %}
+<section class="cartao">
+  <h2>Sugestão de metas (rascunho para sua validação)</h2>
+  <ul class="lista">{% for rot, nota, sug in res.baixos %}<li><strong>{{ rot }}</strong> ({{ nota }}/10): {{ sug }}</li>{% endfor %}</ul>
+  <p class="nota">Sugestões automáticas por regra (nota ≤ 4). Ajuste ao contexto e à vontade do paciente antes de orientar.</p>
+</section>
+{% endif %}
+{% endblock %}

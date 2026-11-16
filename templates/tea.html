@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block title %}Avaliação alimentar — TEA{% endblock %}
+{% block content %}
+<div class="barra"><div><h1>Avaliação alimentar — TEA ({{ a.data|dmy }})</h1><p class="suave">{{ p.nome }} · {{ p.codigo }}</p></div>
+  <a class="btn sec" href="{{ url_for('paciente', pid=p.id) }}">Voltar</a></div>
+<div class="alerta info">Triagem interna de apoio, não validada e não diagnóstica. A conduta é do nutricionista, em articulação com a equipe multiprofissional.</div>
+
+<section class="cartao">
+  <h2>Nível de atenção alimentar: <span class="tag {{ 'aviso' if nivel != 'baixo' }}">{{ nivel }}</span></h2>
+  {% for t in atencao %}<div class="alerta {{ 'atencao' if nivel == 'alto' else 'aviso' }}">{{ t }}</div>
+  {% else %}<p class="suave">Nenhum ponto de atenção sinalizado pelas regras.</p>{% endfor %}
+</section>
+
+<section class="cartao">
+  <h2>Resumo registrado</h2>
+  <dl class="dl">
+    <dt>Repertório</dt><dd>{{ dict(M.FAIXAS_ACEITOS).get(d.faixa_aceitos, '—') }}</dd>
+    <dt>Grupos aceitos</dt><dd>{% for k, r in M.GRUPOS if k in d.grupos_aceitos %}{{ r }}{{ ', ' if not loop.last }}{% else %}—{% endfor %}</dd>
+    <dt>Recusas</dt><dd>{% for k, r in M.RECUSAS if k in d.recusas %}{{ r }}{{ ', ' if not loop.last }}{% else %}—{% endfor %}</dd>
+    <dt>Refeição</dt><dd>{% for k, r in M.COMPORTAMENTOS if k in d.comportamentos %}{{ r }}{{ '; ' if not loop.last }}{% else %}—{% endfor %}</dd>
+    <dt>GI</dt><dd>{% for k, r in M.GI if k in d.gi %}{{ r }}{{ ', ' if not loop.last }}{% else %}—{% endfor %}</dd>
+    <dt>Sono</dt><dd>{{ d.sono or '—' }}</dd>
+    <dt>Medicamentos</dt><dd>{{ d.medicamentos or '—' }}</dd>
+    <dt>Suplementos</dt><dd>{{ d.suplementos or '—' }}</dd>
+    <dt>Escore-z</dt><dd>IMC/idade {{ d.zimc if d.zimc is defined else '—' }} · estatura/idade {{ d.zestatura if d.zestatura is defined else '—' }}</dd>
+    <dt>Equipe</dt><dd>{% for k, r in M.APOIO if k in d.apoio %}{{ r }}{{ ', ' if not loop.last }}{% else %}—{% endfor %}</dd>
+    <dt>Obs.</dt><dd class="pre">{{ d.obs or '—' }}</dd>
+  </dl>
+</section>
+{% endblock %}

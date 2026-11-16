@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block title %}Política de Privacidade{% endblock %}
+{% block content %}
+<article class="cartao texto">
+  <h1>Política de Privacidade e Proteção de Dados</h1>
+  <p class="suave">Versão {{ policy_version }} · Lei nº 13.709/2018 (LGPD)</p>
+  <p class="alerta aviso">Modelo-base fornecido com o sistema. Antes de usar com pacientes reais, revise com um(a) advogado(a) especializado(a) em proteção de dados e complete os campos de identificação.</p>
+
+  <h2>1. Quem é o controlador</h2>
+  <p>{{ clinic.nome_clinica }} — {{ clinic.nome_pro }}, {{ clinic.titulo_pro }}, {{ clinic.registro_pro }}.
+     Contato do encarregado/canal do titular: {{ clinic.contato_dpo }}.</p>
+
+  <h2>2. Quais dados tratamos</h2>
+  <ul>
+    <li>Identificação e contato (nome, nascimento, sexo para cálculos, telefone, e-mail, cidade, profissão).</li>
+    <li><strong>Dados pessoais sensíveis de saúde:</strong> anamnese, medidas antropométricas, exames, condutas e evolução.</li>
+    <li>Dado sensível opcional sobre convicção religiosa/espiritual, somente se você autorizar de forma específica.</li>
+    <li>Registros técnicos de acesso (data/hora, IP e ação) para segurança e auditoria.</li>
+  </ul>
+
+  <h2>3. Para que usamos (finalidades) e bases legais</h2>
+  <ul>
+    <li>Prestar o atendimento nutricional e manter o prontuário — tutela da saúde por profissional de saúde e cumprimento de obrigação legal/regulatória (LGPD art. 7º, II e VIII; art. 11, II, “a” e “f”), além do seu consentimento ao ativar o portal.</li>
+    <li>Registro de espiritualidade e comunicações opcionais — consentimento específico, revogável (art. 8º, §5º).</li>
+    <li>Segurança e prevenção a fraudes — legítimo interesse sobre dados não sensíveis de acesso.</li>
+  </ul>
+
+  <h2>4. Compartilhamento</h2>
+  <p>Não vendemos nem compartilhamos seus dados para publicidade. Só há compartilhamento com operadores necessários ao serviço (hospedagem, e-mail, pagamentos, se contratados), sob contrato, e quando exigido por lei ou por você.</p>
+
+  <h2>5. Como protegemos</h2>
+  <ul>
+    <li>Campos sensíveis criptografados em repouso; conexão criptografada (HTTPS) em produção.</li>
+    <li>Senhas com hash seguro; bloqueio após tentativas excessivas; sessão expira por inatividade.</li>
+    <li>Cada paciente acessa apenas o próprio prontuário; resultados só aparecem após validação do profissional.</li>
+    <li>Registro de acessos e alterações; backups; histórico de versões sem sobrescrever dados.</li>
+  </ul>
+
+  <h2>6. Por quanto tempo guardamos</h2>
+  <p>Pelo prazo necessário à finalidade e às obrigações legais e regulatórias aplicáveis ao prontuário (conforme normas do CFN e orientação jurídica). Após esse prazo, os dados são eliminados ou anonimizados.</p>
+
+  <h2>7. Seus direitos (art. 18)</h2>
+  <p>Confirmação e acesso, correção, anonimização/eliminação, portabilidade, informação sobre compartilhamento, e revogação do consentimento. No portal, em <em>Meus dados e direitos</em>, você baixa seus dados e envia solicitações, respondidas em até 15 dias. Você também pode contatar a Autoridade Nacional de Proteção de Dados (ANPD).</p>
+
+  <h2>8. Incidentes</h2>
+  <p>Em caso de incidente de segurança que possa causar risco relevante, comunicaremos você e a ANPD nos termos da lei.</p>
+
+  <h2>9. Natureza das informações</h2>
+  <p>Cálculos e relatórios são apoio ao profissional e só têm validade após revisão e aprovação do nutricionista responsável.</p>
+</article>
+{% endblock %}

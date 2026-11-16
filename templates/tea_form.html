@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block title %}Avaliação alimentar — TEA{% endblock %}
+{% block content %}
+<h1>Avaliação alimentar e nutricional — TEA</h1>
+<p class="suave">{{ p.nome }} · {{ p.codigo }}{% if p.idade is not none %} · {{ p.idade }} anos{% endif %}</p>
+<div class="alerta info">Esta ficha organiza dados alimentares, sensoriais e gastrointestinais para o planejamento nutricional. <strong>Não diagnostica TEA</strong> (diagnóstico é clínico e multiprofissional) e a triagem é interna, não um instrumento validado.</div>
+{% if p.menor and not p.responsavel_nome %}<div class="alerta atencao">Paciente menor sem responsável legal cadastrado. <a href="{{ url_for('paciente_editar', pid=p.id) }}">Completar cadastro</a>.</div>{% endif %}
+
+<form method="post" class="cartao">
+  <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+  <div class="grade">
+    <label>Data <input type="date" name="data" required value="{{ hoje.isoformat() }}"></label>
+    <label>Informante (quem respondeu) <input name="informante" maxlength="120" value="{{ ult.get('informante','') or p.responsavel_nome or '' }}"></label>
+  </div>
+
+  <h2>Repertório alimentar</h2>
+  <label>Quantidade aproximada de alimentos aceitos
+    <select name="faixa_aceitos" required>{% for v, r in M.FAIXAS_ACEITOS %}<option value="{{ v }}" {{ 'selected' if ult.get('faixa_aceitos')==v }}>{{ r }}</option>{% endfor %}</select></label>
+  <p><strong>Grupos aceitos</strong></p>
+  <div class="checks">{% for k, r in M.GRUPOS %}<label class="check"><input type="checkbox" name="grupo_{{ k }}" {{ 'checked' if k in ult.get('grupos_aceitos',[]) }}><span>{{ r }}</span></label>{% endfor %}</div>
+  <label>Alimentos aceitos <textarea name="alimentos_aceitos" rows="2">{{ ult.get('alimentos_aceitos','') }}</textarea></label>
+  <label>Alimentos recusados <textarea name="alimentos_recusados" rows="2">{{ ult.get('alimentos_recusados','') }}</textarea></label>
+  <p><strong>Motivos de recusa</strong></p>
+  <div class="checks">{% for k, r in M.RECUSAS %}<label class="check"><input type="checkbox" name="recusa_{{ k }}" {{ 'checked' if k in ult.get('recusas',[]) }}><span>{{ r }}</span></label>{% endfor %}</div>
+  <label>Perfil sensorial (sensibilidade a texturas, cheiros, sons, luz…) <textarea name="sensorial" rows="2">{{ ult.get('sensorial','') }}</textarea></label>
+
+  <h2>Comportamento na refeição</h2>
+  <div class="checks">{% for k, r in M.COMPORTAMENTOS %}<label class="check"><input type="checkbox" name="comp_{{ k }}" {{ 'checked' if k in ult.get('comportamentos',[]) }}><span>{{ r }}</span></label>{% endfor %}</div>
+
+  <h2>Gastrointestinal e sono</h2>
+  <div class="checks">{% for k, r in M.GI %}<label class="check"><input type="checkbox" name="gi_{{ k }}" {{ 'checked' if k in ult.get('gi',[]) }}><span>{{ r }}</span></label>{% endfor %}</div>
+  <div class="grade">
+    <label>Escala de Bristol predominante <input name="bristol" maxlength="20" value="{{ ult.get('bristol','') }}"></label>
+    <label>Sono (horas, despertares, rotina) <input name="sono" maxlength="400" value="{{ ult.get('sono','') }}"></label>
+  </div>
+
+  <h2>Medicamentos, suplementos e dietas</h2>
+  <label>Medicamentos em uso <textarea name="medicamentos" rows="2">{{ ult.get('medicamentos','') }}</textarea></label>
+  <label>Suplementos <textarea name="suplementos" rows="2">{{ ult.get('suplementos','') }}</textarea></label>
+  <label>Dietas restritivas já realizadas ou em uso <textarea name="dietas_restritivas" rows="2">{{ ult.get('dietas_restritivas','') }}</textarea></label>
+
+  <h2>Crescimento (OMS)</h2>
+  <p class="nota">Calcule o escore-z nas curvas da OMS (ex.: software WHO AnthroPlus) e digite aqui; o sistema usa apenas para sinalizar.</p>
+  <div class="grade">
+    <label>Escore-z IMC/idade <input name="zimc" inputmode="decimal" value="{{ ult.get('zimc','') }}"></label>
+    <label>Escore-z estatura/idade <input name="zestatura" inputmode="decimal" value="{{ ult.get('zestatura','') }}"></label>
+  </div>
+
+  <h2>Equipe de apoio</h2>
+  <div class="checks">{% for k, r in M.APOIO %}<label class="check"><input type="checkbox" name="apoio_{{ k }}" {{ 'checked' if k in ult.get('apoio',[]) }}><span>{{ r }}</span></label>{% endfor %}</div>
+  <label>Observações <textarea name="obs" rows="3">{{ ult.get('obs','') }}</textarea></label>
+
+  <button class="btn" type="submit">Salvar e ver triagem</button>
+  <a class="btn sec" href="{{ url_for('paciente', pid=p.id) }}">Cancelar</a>
+</form>
+{% endblock %}

@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block title %}Avaliação integrativa{% endblock %}
+{% block content %}
+<h1>Avaliação integrativa — {{ p.nome }}</h1>
+<p class="suave">Oito remédios naturais. Dê uma nota de 0 (muito deficiente) a 10 (excelente) em cada pilar, de acordo com a conversa com o paciente.</p>
+<form method="post" class="cartao">
+  <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+  <label>Data <input type="date" name="data" required value="{{ hoje.isoformat() }}"></label>
+  {% for chave, rot, _sug in pilares %}
+    {% if chave == sensivel and not espiritual_ok %}
+      <fieldset class="consent"><legend>{{ rot }}</legend>
+        <p class="suave">Dado sensível (convicção religiosa/espiritual): só pode ser registrado se o paciente autorizar de forma específica, no portal. Pilar desativado.</p></fieldset>
+    {% else %}
+      <div class="escala">
+        <label>{{ rot }} <input name="obs_{{ chave }}" maxlength="1000" placeholder="Observação (opcional)" value="{{ ultima.obs.get(chave,'') }}"></label>
+        <label>Nota <input type="number" min="0" max="10" step="1" name="nota_{{ chave }}" value="{{ ultima.notas.get(chave,'') }}"></label>
+      </div>
+    {% endif %}
+  {% endfor %}
+  <button class="btn" type="submit">Salvar avaliação</button>
+  <a class="btn sec" href="{{ url_for('paciente', pid=p.id) }}">Cancelar</a>
+</form>
+{% endblock %}

@@ -1,0 +1,128 @@
+{% extends "base.html" %}
+{% block title %}{{ p.nome }}{% endblock %}
+{% block content %}
+<div class="barra">
+  <div>
+    <h1>{{ p.nome }}</h1>
+    <p class="suave">{{ p.codigo }} · {{ 'Masculino' if p.sexo=='M' else 'Feminino' }}
+      {% if p.nascimento %}· nasc. {{ p.nascimento|dmy }}{% endif %}
+      {% if p.anonimizado_em %}<span class="tag">anonimizado</span>{% endif %}</p>
+  </div>
+  {% if not p.anonimizado_em %}
+  <div class="acoes">
+    <a class="btn sec" href="{{ url_for('paciente_editar', pid=p.id) }}">Editar</a>
+    <a class="btn" href="{{ url_for('avaliacao_nova', pid=p.id) }}">+ Nova avaliação</a>
+  </div>
+  {% endif %}
+</div>
+
+{% if insights %}
+<section class="cartao">
+  <h2>Alertas e sugestões automáticas</h2>
+  {% for nivel, txt in insights %}<div class="alerta {{ nivel }}">{{ txt }}</div>{% endfor %}
+  <p class="nota">Regras transparentes de apoio; não são diagnóstico e dependem da sua validação.</p>
+</section>
+{% endif %}
+
+<div class="duas">
+  <section class="cartao">
+    <h2>Cadastro</h2>
+    <dl class="dl">
+      <dt>Telefone</dt><dd>{{ p.telefone or '—' }}</dd>
+      <dt>E-mail</dt><dd>{{ p.email or '—' }}</dd>
+      <dt>Cidade</dt><dd>{{ p.cidade or '—' }}</dd>
+      <dt>Profissão</dt><dd>{{ p.profissao or '—' }}</dd>
+      {% if p.responsavel_nome %}<dt>Responsável</dt><dd>{{ p.responsavel_nome }}{% if p.responsavel_contato %} · {{ p.responsavel_contato }}{% endif %}</dd>{% endif %}
+      <dt>Portal</dt><dd>{{ 'Acesso ativo' if p.user_id else 'Sem acesso' }}</dd>
+    </dl>
+    {% if not p.user_id and not p.anonimizado_em %}
+    <form method="post" action="{{ url_for('paciente_convite', pid=p.id) }}">
+      <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+      <button class="btn sec" type="submit">Gerar convite para o portal</button>
+    </form>
+    {% endif %}
+  </section>
+
+  <section class="cartao">
+    <h2>Consentimentos (LGPD)</h2>
+    <ul class="lista">
+      <li>Tratamento de dados de saúde: <strong>{{ 'registrado' if consent.tratamento_saude else 'não registrado' }}</strong></li>
+      <li>Dado espiritual (opcional): <strong>{{ 'autorizado' if consent.espiritualidade else 'não autorizado' }}</strong></li>
+      <li>Comunicações (opcional): <strong>{{ 'autorizado' if consent.comunicacao else 'não autorizado' }}</strong></li>
+    </ul>
+    <details><summary>Histórico</summary>
+      <ul class="lista pequeno">
+      {% for c in p.consentimentos|reverse %}
+        <li>{{ c.data|dt }} — {{ c.tipo }}: {{ 'aceito' if c.aceito else 'revogado' }} ({{ c.origem }}, v{{ c.versao }})</li>
+      {% else %}<li>Nenhum registro.</li>{% endfor %}
+      </ul>
+    </details>
+  </section>
+</div>
+
+<section class="cartao">
+  <div class="barra"><h2>Anamnese</h2>
+    {% if not p.anonimizado_em %}<a class="btn sec" href="{{ url_for('anamnese_pro', pid=p.id) }}">{{ 'Editar' if ana else 'Preencher' }}</a>{% endif %}</div>
+  {% if ana %}
+    <p>Última versão: {{ ana.criado_em|dt }} ({{ ana.origem }}) —
+      {% if ana.revisada %}<span class="tag ok">revisada</span>{% else %}<span class="tag aviso">aguardando revisão</span>{% endif %}
+      · {{ p.anamneses|length }} versão(ões) no histórico</p>
+    {% if not ana.revisada and not p.anonimizado_em %}
+    <form method="post" action="{{ url_for('anamnese_revisar', pid=p.id, aid=ana.id) }}">
+      <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+      <button class="btn sec" type="submit">Marcar como revisada</button></form>
+    {% endif %}
+  {% else %}<p class="suave">Ainda não preenchida.</p>{% endif %}
+</section>
+
+<section class="cartao">
+  <h2>Avaliações e evolução</h2>
+  {% if graficos[0] %}<div class="graficos">{% for gr in graficos %}{{ gr }}{% endfor %}</div>{% endif %}
+  <table class="tabela">
+    <thead><tr><th>Data</th><th>Peso</th><th>IMC</th><th>Cintura</th><th>Paciente vê?</th><th></th></tr></thead>
+    <tbody>
+    {% for a in p.avaliacoes %}
+      <tr>
+        <td>{{ a.data|dmy }}</td><td>{{ a.peso|br }} kg</td>
+        <td>{{ (a.peso / ((a.altura_cm/100)**2))|br }}</td><td>{{ a.cintura|br }} cm</td>
+        <td>{{ 'sim' if a.liberada else 'não' }}</td>
+        <td><a href="{{ url_for('avaliacao_ver', pid=p.id, aid=a.id) }}">Abrir</a></td>
+      </tr>
+    {% else %}<tr><td colspan="6" class="suave">Nenhuma avaliação registrada.</td></tr>{% endfor %}
+    </tbody>
+  </table>
+</section>
+
+<section class="cartao">
+  <div class="barra"><h2>Avaliação integrativa (oito remédios naturais)</h2>
+    {% if not p.anonimizado_em %}<a class="btn sec" href="{{ url_for('integrativa_nova', pid=p.id) }}">+ Nova</a>{% endif %}</div>
+  {% if integ_graf %}{{ integ_graf }}{% endif %}
+  <ul class="lista">{% for i in p.integrativas %}<li><a href="{{ url_for('integrativa_ver', pid=p.id, aid=i.id) }}">{{ i.data|dmy }}</a></li>{% else %}<li class="suave">Nenhuma avaliação integrativa.</li>{% endfor %}</ul>
+</section>
+
+<section class="cartao">
+  <div class="barra"><h2>Avaliação alimentar — TEA</h2>
+    {% if not p.anonimizado_em %}<a class="btn sec" href="{{ url_for('tea_nova', pid=p.id) }}">+ Nova</a>{% endif %}</div>
+  {% if tea_res %}<p>Último nível de atenção: <span class="tag {{ 'aviso' if tea_res[0] != 'baixo' }}">{{ tea_res[0] }}</span></p>{% endif %}
+  <ul class="lista">{% for t in p.teas %}<li><a href="{{ url_for('tea_ver', pid=p.id, aid=t.id) }}">{{ t.data|dmy }}</a></li>{% else %}<li class="suave">Nenhuma avaliação TEA.</li>{% endfor %}</ul>
+</section>
+
+<section class="cartao">
+  <h2>Direitos do titular e proteção de dados</h2>
+  <p><a class="btn sec" href="{{ url_for('exportar_pro', pid=p.id) }}">Exportar prontuário (JSON)</a></p>
+  {% if p.solicitacoes %}
+  <p>Solicitações: {% for s in p.solicitacoes %}<span class="tag {{ 'aviso' if s.status=='aberta' else '' }}">{{ s.tipo }} — {{ s.status }}</span> {% endfor %}</p>
+  {% endif %}
+  {% if not p.anonimizado_em %}
+  <details class="perigo"><summary>Anonimizar / eliminar dados identificáveis</summary>
+    <p>Apaga nome, contatos, anamnese e observações; mantém apenas medidas sem identificação. Irreversível.
+       Confirme que não há prazo legal de guarda do prontuário em vigor (consulte as normas do CFN e orientação jurídica).</p>
+    <form method="post" action="{{ url_for('paciente_anonimizar', pid=p.id) }}">
+      <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+      <label>Digite <strong>{{ p.codigo }}</strong> para confirmar <input name="confirma" autocomplete="off"></label>
+      <button class="btn perigo-btn" type="submit">Anonimizar</button>
+    </form>
+  </details>
+  {% endif %}
+</section>
+{% endblock %}

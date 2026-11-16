@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block title %}Autorização{% endblock %}
+{% block content %}
+<section class="cartao estreito">
+  <h1>Autorização necessária</h1>
+  <p>Para continuar usando o portal, precisamos da sua autorização para tratar seus dados de saúde.</p>
+  <form method="post">
+    <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+    <label class="check"><input type="checkbox" name="c_saude" required>
+      <span>Autorizo o tratamento dos meus dados pessoais e de saúde por {{ clinic.nome_pro }} ({{ clinic.registro_pro }}),
+      conforme a <a href="{{ url_for('privacidade') }}" target="_blank">Política de Privacidade</a>.</span></label>
+    <button class="btn" type="submit">Autorizar e continuar</button>
+  </form>
+</section>
+{% endblock %}

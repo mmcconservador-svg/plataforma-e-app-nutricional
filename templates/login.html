@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block title %}Entrar{% endblock %}
+{% block content %}
+<section class="cartao estreito">
+  <h1>Entrar</h1>
+  <p class="suave">Plataforma de avaliação e acompanhamento nutricional.</p>
+  <form method="post" autocomplete="on">
+    <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+    <label>E-mail <input type="email" name="email" required autocomplete="username"></label>
+    <label>Senha <input type="password" name="senha" required autocomplete="current-password"></label>
+    <button class="btn" type="submit">Entrar</button>
+  </form>
+  <p class="nota">Seus dados de saúde são protegidos conforme a LGPD. <a href="{{ url_for('privacidade') }}">Saiba mais</a>.</p>
+</section>
+{% endblock %}

@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block title %}Solicitações LGPD{% endblock %}
+{% block content %}
+<h1>Solicitações de titulares (LGPD art. 18)</h1>
+<p class="suave">Prazo recomendado de resposta: 15 dias. Ao negar, registre a justificativa (ex.: obrigação legal de guarda do prontuário).</p>
+{% for s in lista %}
+<section class="cartao">
+  <p><strong>{{ s.paciente.nome }}</strong> ({{ s.paciente.codigo }}) — {{ s.tipo }} — {{ s.criado_em|dt }}
+    <span class="tag {{ 'aviso' if s.status=='aberta' else '' }}">{{ s.status }}</span></p>
+  {% if s.mensagem %}<p class="pre">{{ s.mensagem }}</p>{% endif %}
+  {% if s.status == 'aberta' %}
+  <form method="post" action="{{ url_for('solicitacao_resolver', rid=s.id) }}">
+    <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+    <label>Resposta ao titular <textarea name="resposta" rows="2" maxlength="2000"></textarea></label>
+    {% if s.tipo == 'exclusao' %}<p class="nota">“Atender” anonimiza o prontuário imediatamente (irreversível).</p>{% endif %}
+    <button class="btn" name="acao" value="atender" type="submit">Atender</button>
+    <button class="btn sec" name="acao" value="negar" type="submit">Negar com justificativa</button>
+  </form>
+  {% elif s.resposta %}<p class="suave">Resposta: {{ s.resposta }}</p>{% endif %}
+</section>
+{% else %}<p class="suave">Nenhuma solicitação.</p>{% endfor %}
+{% endblock %}

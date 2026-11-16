@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block title %}Nova avaliação{% endblock %}
+{% block content %}
+<h1>Nova avaliação — {{ p.nome }}</h1>
+{% if ultima %}<p class="suave">Última avaliação ({{ ultima.data|dmy }}): {{ ultima.peso|br }} kg, cintura {{ ultima.cintura|br }} cm.</p>{% endif %}
+<form method="post" class="cartao grade">
+  <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+  <label>Data da avaliação <input type="date" name="data" required value="{{ f.get('data','') }}"></label>
+  <label>Peso (kg) <input name="peso" inputmode="decimal" required value="{{ f.get('peso','') }}"></label>
+  <label>Altura (cm) <input name="altura_cm" inputmode="decimal" required value="{{ f.get('altura_cm','') }}"></label>
+  <label>Circunferência abdominal (cm) <input name="cintura" inputmode="decimal" required value="{{ f.get('cintura','') }}"></label>
+  <label>Circunferência do quadril (cm) <input name="quadril" inputmode="decimal" required value="{{ f.get('quadril','') }}"></label>
+  <label>% de gordura (se disponível) <input name="gordura_pct" inputmode="decimal" value="{{ f.get('gordura_pct','') }}"></label>
+  <label>Fator de atividade
+    <select name="fator" required>
+      {% for k, (rot, _v) in fatores.items() %}<option value="{{ k }}" {{ 'selected' if f.get('fator')==k }}>{{ rot }}</option>{% endfor %}
+    </select></label>
+  <label>Objetivo (preenche uma sugestão editável)
+    <select id="objetivo_preset">
+      <option value="">— escolher —</option>
+      <option value="manutencao">Manutenção</option>
+      <option value="emagrecimento">Emagrecimento</option>
+      <option value="ganho">Ganho de peso</option>
+      <option value="hipertrofia">Hipertrofia</option>
+    </select></label>
+  <label>Ajuste energético (kcal, + ou −) <input name="ajuste_kcal" inputmode="numeric" value="{{ f.get('ajuste_kcal',0) }}"></label>
+  <label>Condição especial
+    <select name="condicao">
+      {% for k, rot in condicoes.items() %}<option value="{{ k }}" {{ 'selected' if f.get('condicao')==k }}>{{ rot }}</option>{% endfor %}
+    </select></label>
+  <label>% Carboidratos <input name="pct_carb" inputmode="decimal" value="{{ f.get('pct_carb',50) }}"></label>
+  <label>% Proteínas <input name="pct_prot" inputmode="decimal" value="{{ f.get('pct_prot',20) }}"></label>
+  <label>% Lipídios <input name="pct_lip" inputmode="decimal" value="{{ f.get('pct_lip',30) }}"></label>
+  <label class="largo">Observações clínicas <textarea name="observacoes" rows="3" maxlength="4000">{{ f.get('observacoes','') }}</textarea></label>
+  <div class="largo"><button class="btn" type="submit">Calcular e salvar</button>
+    <a class="btn sec" href="{{ url_for('paciente', pid=p.id) }}">Cancelar</a></div>
+</form>
+<p class="nota">Os cálculos são apoio à decisão; o sistema não diagnostica. Ajuste meta energética e distribuição conforme o caso clínico.</p>
+{% endblock %}

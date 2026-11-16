@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block title %}{{ 'Editar' if p else 'Novo' }} paciente{% endblock %}
+{% block content %}
+<section class="cartao">
+  <h1>{{ 'Editar cadastro' if p else 'Novo paciente' }}</h1>
+  <form method="post" class="grade">
+    <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+    <label class="largo">Nome completo <input name="nome" required maxlength="190" value="{{ f.get('nome','') }}"></label>
+    <label>Nascimento <input type="date" name="nascimento" value="{{ f.get('nascimento','') }}"></label>
+    <label>Sexo utilizado nos cálculos
+      <select name="sexo" required>
+        <option value="">Selecione</option>
+        <option value="F" {{ 'selected' if f.get('sexo')=='F' }}>Feminino</option>
+        <option value="M" {{ 'selected' if f.get('sexo')=='M' }}>Masculino</option>
+      </select></label>
+    <label>Telefone / WhatsApp <input name="telefone" maxlength="40" value="{{ f.get('telefone','') }}"></label>
+    <label>E-mail <input type="email" name="email" maxlength="190" value="{{ f.get('email','') }}"
+        {{ 'readonly' if p and p.user_id }}></label>
+    <label>Cidade / UF <input name="cidade" maxlength="120" value="{{ f.get('cidade','') }}"></label>
+    <label>Profissão <input name="profissao" maxlength="120" value="{{ f.get('profissao','') }}"></label>
+    <label>Responsável legal (obrigatório para menores de 18 anos) <input name="responsavel_nome" maxlength="190" value="{{ f.get('responsavel_nome','') }}"></label>
+    <label>Contato do responsável <input name="responsavel_contato" maxlength="190" value="{{ f.get('responsavel_contato','') }}"></label>
+    {% if not p %}
+    <label class="check largo"><input type="checkbox" name="c_presencial">
+      <span>Paciente (ou o responsável legal, se menor de 18 anos) foi informado e autorizou presencialmente o
+      tratamento dos dados de saúde (registra o consentimento com origem “presencial”).</span></label>
+    {% endif %}
+    <div class="largo"><button class="btn" type="submit">Salvar</button>
+      <a class="btn sec" href="{{ url_for('paciente', pid=p.id) if p else url_for('pacientes') }}">Cancelar</a></div>
+  </form>
+  <p class="nota">Colete somente os dados necessários à finalidade (princípio da minimização).</p>
+</section>
+{% endblock %}
