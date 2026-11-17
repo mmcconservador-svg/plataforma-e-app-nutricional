@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block title %}Importar tabela{% endblock %}
+{% block content %}
+<h1>Importar tabela de alimentos</h1>
+<div class="alerta info">Baixe a tabela no site oficial (TACO: CFN/Unicamp · TBCA: USP · medidas: IBGE) e confirme que o uso é permitido pela licença de cada fonte. O arquivo é lido, importado e descartado; nada é enviado a terceiros.</div>
+<form method="post" enctype="multipart/form-data" class="cartao grade">
+  <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+  <label>Arquivo (.csv, .tsv ou .xlsx) <input type="file" name="arquivo" required accept=".csv,.tsv,.txt,.xlsx,.xlsm"></label>
+  <label>Conteúdo do arquivo
+    <select name="tipo"><option value="composicao">Composição de alimentos (nutrientes por 100 g)</option><option value="medidas">Medidas caseiras</option><option value="fatores">Fatores de correção e de cocção</option></select></label>
+  <label>Código da fonte (não precisa para fatores) <input name="fonte" maxlength="30" list="fontes" placeholder="TACO">
+    <datalist id="fontes">{% for k in fontes %}<option value="{{ k }}">{% endfor %}</datalist></label>
+  <label>Versão/edição <input name="versao" maxlength="40" placeholder="4ª edição"></label>
+  <label>Ao importar medidas: vincular só aos alimentos da fonte <input name="fonte_alimentos" maxlength="30" placeholder="TACO (opcional)"></label>
+  <label class="check largo"><input type="checkbox" name="licenca" required><span>Confirmo que tenho licença/autorização para usar esta tabela neste sistema.</span></label>
+  <div class="largo"><button class="btn" type="submit">Importar</button> <a class="btn sec" href="{{ url_for('alimentos') }}">Voltar</a></div>
+</form>
+{% if resultado %}
+<section class="cartao"><h2>Resultado</h2>
+  <ul class="lista">{% for k, v in resultado.items() %}<li><strong>{{ k.replace('_',' ') }}:</strong> {{ v }}</li>{% endfor %}</ul>
+  {% if resultado.get('inconsistentes') %}<p class="nota">“Inconsistentes” = energia difere mais de 30% de 4×P + 4×C + 9×L (verifique na fonte).</p>{% endif %}
+</section>
+{% endif %}
+<section class="cartao"><h2>Outras fontes</h2>
+  <p><a href="{{ url_for('alimentos_usda') }}">Buscar e importar alimentos do USDA FoodData Central</a> (API; exige <code>USDA_API_KEY</code>). O pacote CSV completo do USDA é importado pelo comando <code>flask importar-usda PASTA</code>.</p>
+  <p class="nota">Fatores: CSV/XLSX com colunas “alimento” (ou “código”), “fator de correção” (FC = peso bruto ÷ líquido), “fator de cocção” (peso cozido ÷ cru) e “método”.</p>
+</section>
+<section class="cartao"><h2>Como o importador entende as colunas</h2>
+  <p class="nota">Reconhece colunas de descrição/nome, código, categoria/grupo, energia (kcal), proteína, lipídios, carboidrato (prefere “disponível”), fibra e qualquer outra coluna com unidade entre parênteses (mg, mcg, g) como micronutriente. “Tr” vira 0; “NA”, “*” e vazio ficam sem valor. Linhas com apenas o título de um grupo definem o grupo dos itens seguintes. Para medidas: colunas de alimento (ou código), medida e gramas.</p>
+</section>
+{% endblock %}

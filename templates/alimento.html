@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+{% block title %}{{ a.nome }}{% endblock %}
+{% block content %}
+<div class="barra"><div><h1>{{ a.nome }}</h1><p class="suave">{{ a.grupo or 'Sem grupo' }} · fonte {{ a.fonte.codigo }}{% if a.fonte.versao %} ({{ a.fonte.versao }}){% endif %}{% if a.owner_id %} · alimento próprio{% endif %}</p></div>
+  <a class="btn sec" href="{{ url_for('alimentos') }}">Voltar</a></div>
+
+<div class="duas">
+<section class="cartao"><h2>Composição por 100 g</h2>
+  <table class="tabela"><tbody>
+    <tr><td>Energia</td><td>{{ a.energia_kcal|br(0) }} kcal</td></tr>
+    <tr><td>Proteínas</td><td>{{ a.proteina_g|br }} g</td></tr>
+    <tr><td>Lipídios</td><td>{{ a.lipidio_g|br }} g</td></tr>
+    <tr><td>Carboidratos</td><td>{{ a.carbo_g|br }} g</td></tr>
+    <tr><td>Fibras</td><td>{{ a.fibra_g|br }} g</td></tr>
+    <tr><td>Fator de correção (FC)</td><td>{{ (a.fator_correcao or 1)|br(2) }}</td></tr>
+    <tr><td>Fator de cocção (FCoc)</td><td>{{ a.fator_coccao|br(2) if a.fator_coccao else '—' }}{% if a.metodo_preparo %} ({{ a.metodo_preparo }}){% endif %}</td></tr>
+    {% if a.fator_coccao %}<tr><td>100 g crus rendem</td><td>≈ {{ (100 * a.fator_coccao)|br(0) }} g preparados</td></tr>{% endif %}
+    {% for k, v in a.micros_dict.items() %}<tr><td>{{ k.replace('_',' ') }}</td><td>{{ v|br(2) }}</td></tr>{% endfor %}
+  </tbody></table>
+</section>
+<section class="cartao"><h2>Medidas caseiras</h2>
+  <table class="tabela"><thead><tr><th>Medida</th><th>Gramas</th><th></th></tr></thead><tbody>
+  {% for m in a.medidas %}<tr><td>{{ m.descricao }}</td><td>{{ m.gramas|br(1) }}</td><td>
+    {% if m.fonte == 'PROPRIO' %}<form method="post" action="{{ url_for('alimento_medida_remover', mid=m.id) }}" class="inline">
+      <input type="hidden" name="_csrf" value="{{ csrf_token() }}"><button class="link" type="submit">remover</button></form>{% else %}<span class="suave pequeno">{{ m.fonte }}</span>{% endif %}</td></tr>
+  {% else %}<tr><td colspan="3" class="suave">Sem medidas cadastradas.</td></tr>{% endfor %}
+  </tbody></table>
+  <form method="post" action="{{ url_for('alimento_medida', aid=a.id) }}" class="grade">
+    <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+    <label>Nova medida <input name="descricao" maxlength="120" placeholder="colher de sopa cheia" required></label>
+    <label>Gramas <input name="gramas" inputmode="decimal" required></label>
+    <div class="largo"><button class="btn sec" type="submit">Adicionar medida</button></div>
+  </form>
+</section>
+</div>
+
+<section class="cartao">
+  <h2>Fatores de correção e cocção</h2>
+  <form method="post" action="{{ url_for('alimento_fatores', aid=a.id) }}" class="grade">
+    <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+    <label>FC (bruto ÷ líquido) <input name="fator_correcao" inputmode="decimal" value="{{ a.fator_correcao or '' }}"></label>
+    <label>FCoc (cozido ÷ cru) <input name="fator_coccao" inputmode="decimal" value="{{ a.fator_coccao or '' }}"></label>
+    <label>Método de preparo <input name="metodo_preparo" maxlength="60" value="{{ a.metodo_preparo or '' }}"></label>
+    <div class="largo"><button class="btn sec" type="submit">Salvar fatores</button></div>
+  </form>
+  <p class="nota">Use valores de fonte confiável (ex.: manuais de técnica dietética/UAN) e registre a origem nas observações do serviço.</p>
+</section>
+
+<section class="cartao">
+  <h2>Trocas equivalentes</h2>
+  <form method="get" class="grade">
+    <label>Quantidade (g) <input name="g" inputmode="decimal" value="{{ '%g'|format(gramas) }}"></label>
+    <label>Manter igual o nutriente
+      <select name="criterio">{% for k in criterios %}<option value="{{ k }}" {{ 'selected' if k == criterio }}>{{ k|capitalize }}</option>{% endfor %}</select></label>
+    <label class="check"><input type="checkbox" name="grupo" value="1" {{ 'checked' if mesmo_grupo }}><span>Somente do mesmo grupo</span></label>
+    <div class="largo"><button class="btn" type="submit">Calcular trocas</button></div>
+  </form>
+  {% if erro %}<div class="alerta erro">{{ erro }}</div>{% endif %}
+  {% if eq %}
+  <p>Referência: {{ '%g'|format(gramas) }} g de {{ a.nome }} = {{ eq.alvo|br(1) }} do nutriente escolhido
+     ({{ eq.base.kcal|br(0) }} kcal · P {{ eq.base.p|br }} · C {{ eq.base.c|br }} · L {{ eq.base.l|br }} · Fibras {{ eq.base.f|br }}).</p>
+  <div class="tabela-wrap"><table class="tabela eq"><thead><tr><th>Substituto</th><th>Quantidade</th><th>Medida caseira</th><th>kcal</th><th>P</th><th>C</th><th>L</th><th>Fibras</th><th>Δ kcal</th></tr></thead><tbody>
+  {% for x in eq.itens %}<tr><td><a href="{{ url_for('alimento', aid=x.alimento.id) }}">{{ x.alimento.nome }}</a></td><td>{{ x.gramas|br(0) }} g</td>
+    <td>{% if x.medida %}≈ {{ '%g'|format(x.medida.qtd) }} × {{ x.medida.descricao }}{% else %}—{% endif %}</td>
+    <td>{{ x.valores.kcal|br(0) }}</td><td>{{ x.valores.p|br }}</td><td>{{ x.valores.c|br }}</td><td>{{ x.valores.l|br }}</td><td>{{ x.valores.f|br }}</td>
+    <td>{{ '%+.0f'|format(x.dif.kcal) }}</td></tr>
+  {% else %}<tr><td colspan="9" class="suave">Nenhum substituto encontrado.</td></tr>{% endfor %}
+  </tbody></table></div>
+  <p class="nota">A equivalência iguala apenas o nutriente escolhido. Compare os demais nutrientes (colunas) e a qualidade do alimento antes de substituir.</p>
+  {% endif %}
+</section>
+{% endblock %}

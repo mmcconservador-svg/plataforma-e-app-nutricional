@@ -60,3 +60,14 @@ details.perigo{border:1px solid #f1aeb5;border-radius:8px;padding:.5rem 1rem}
 .escala{display:grid;grid-template-columns:1fr 90px;gap:.5rem;align-items:end}
 @media (max-width:600px){.dl{grid-template-columns:1fr}.tabela{font-size:.85rem}}
 @media print{.topo,.rodape,.btn,nav{display:none}}
+
+.qr svg{width:200px;height:200px}
+code{background:var(--verde2);padding:.05rem .4rem;border-radius:4px}
+.status-ok{color:#1a7f37}.status-baixo,.status-alto{color:var(--aviso)}
+.eq td:first-child{font-weight:600}
+.busca-res{list-style:none;margin:.3rem 0;padding:0;border:1px solid var(--borda);border-radius:8px;max-height:260px;overflow:auto}
+.busca-res li{padding:.4rem .6rem;border-bottom:1px solid var(--borda);cursor:pointer}.busca-res li:hover{background:var(--verde2)}
+.item{display:grid;grid-template-columns:2fr 1.3fr .9fr 1fr auto;gap:.4rem;align-items:center;padding:.3rem 0;border-bottom:1px dashed var(--borda)}
+.item input,.item select{margin:0}
+.refeicao{border:1px solid var(--borda);border-radius:10px;padding:.5rem .8rem;margin:.6rem 0}
+@media (max-width:700px){.item{grid-template-columns:1fr 1fr}}

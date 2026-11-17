@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}Cardápio{% endblock %}
+{% block content %}
+<h1>Cardápio — {{ p.nome }}</h1>
+<p class="suave">Escolha os alimentos pela busca; use medidas caseiras ou gramas. “Trocas” sugere substituições equivalentes pelo nutriente escolhido. Cada gravação cria uma nova versão.</p>
+<form method="post" id="form-cardapio" data-estado='{{ estado|tojson }}'>
+  <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+  <input type="hidden" name="estrutura" value="">
+  <input type="hidden" name="estado" value="">
+  <section class="cartao grade">
+    <label class="largo">Título <input name="titulo" required maxlength="160" value="{{ titulo }}"></label>
+    <label>Meta de energia (kcal) <input name="kcal" inputmode="decimal" value="{{ metas.get('kcal','') or '' }}"></label>
+    <label>Carboidratos (g) <input name="carb_g" inputmode="decimal" value="{{ metas.get('carb_g','') or '' }}"></label>
+    <label>Proteínas (g) <input name="prot_g" inputmode="decimal" value="{{ metas.get('prot_g','') or '' }}"></label>
+    <label>Lipídios (g) <input name="lip_g" inputmode="decimal" value="{{ metas.get('lip_g','') or '' }}"></label>
+    <label>Trocas pelo nutriente
+      <select id="criterio"><option value="carboidrato">Carboidrato</option><option value="energia">Energia (kcal)</option>
+        <option value="proteina">Proteína</option><option value="lipidio">Lipídio</option></select></label>
+    <label class="check"><input type="checkbox" id="mesmo-grupo" checked><span>Trocar somente por alimentos do mesmo grupo</span></label>
+  </section>
+  <p class="nota">As metas vêm da última avaliação (VET e macros) e podem ser ajustadas.</p>
+  <div id="editor"></div>
+  <p><button type="button" class="btn sec" id="add-dia">+ Adicionar dia</button></p>
+  <button class="btn" type="submit">Salvar cardápio</button>
+  <a class="btn sec" href="{{ url_for('paciente', pid=p.id) }}">Cancelar</a>
+</form>
+<script src="{{ url_for('static', filename='cardapio.js') }}" defer></script>
+{% endblock %}

@@ -19,12 +19,16 @@
     {% if g.user.papel == 'profissional' %}
       <a href="{{ url_for('dashboard') }}">Dashboard</a>
       <a href="{{ url_for('pacientes') }}">Pacientes</a>
+      <a href="{{ url_for('alimentos') }}">Alimentos</a>
       <a href="{{ url_for('solicitacoes') }}">Solicitações LGPD</a>
       <a href="{{ url_for('auditoria') }}">Auditoria</a>
+      <a href="{{ url_for('conta_2fa') }}">Conta e 2FA</a>
     {% else %}
       <a href="{{ url_for('portal_home') }}">Início</a>
       <a href="{{ url_for('portal_anamnese') }}">Minha anamnese</a>
+      <a href="{{ url_for('portal_cardapios') }}">Meus cardápios</a>
       <a href="{{ url_for('portal_meus_dados') }}">Meus dados e direitos</a>
+      <a href="{{ url_for('conta_senha') }}">Senha</a>
     {% endif %}
     <form method="post" action="{{ url_for('logout') }}" class="inline">
       <input type="hidden" name="_csrf" value="{{ csrf_token() }}">

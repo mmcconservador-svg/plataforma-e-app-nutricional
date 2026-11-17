@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block title %}Meus cardápios{% endblock %}
+{% block content %}
+<h1>Meus cardápios</h1>
+<section class="cartao">
+  <ul class="lista">
+  {% for c in lista %}<li><a href="{{ url_for('portal_cardapio', cid=c.id) }}">{{ c.titulo }}</a> — {{ c.criado_em|dt }}</li>
+  {% else %}<li class="suave">Seu nutricionista ainda não liberou cardápios.</li>{% endfor %}
+  </ul>
+</section>
+{% endblock %}

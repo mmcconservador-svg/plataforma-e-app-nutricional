@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block title %}Alimentos{% endblock %}
+{% block content %}
+<div class="barra"><h1>Banco de alimentos</h1>
+  <div class="acoes"><a class="btn sec" href="{{ url_for('alimentos_importar') }}">Importar tabela (TACO/TBCA/IBGE/fatores)</a>
+    <a class="btn sec" href="{{ url_for('alimentos_usda') }}">USDA</a>
+    <a class="btn" href="{{ url_for('alimento_novo') }}">+ Alimento próprio</a></div></div>
+
+<form method="get" class="busca"><input type="search" name="q" value="{{ q }}" placeholder="Buscar alimento (ex.: arroz, feijão, batata doce)">
+  <button class="btn sec" type="submit">Buscar</button></form>
+
+{% if not fontes %}
+<div class="alerta aviso">Nenhuma tabela importada ainda. Importe a TACO, a TBCA e/ou a tabela de medidas caseiras do IBGE (confirmando que você tem licença de uso) ou cadastre alimentos próprios.</div>
+{% endif %}
+
+{% if q %}
+<section class="cartao">
+  <h2>{{ achados|length }} resultado(s)</h2>
+  <div class="tabela-wrap"><table class="tabela"><thead><tr><th>Alimento</th><th>Grupo</th><th>Fonte</th><th>kcal/100 g</th><th>Medidas</th></tr></thead><tbody>
+  {% for a in achados %}<tr><td><a href="{{ url_for('alimento', aid=a.id) }}">{{ a.nome }}</a></td><td>{{ a.grupo or '' }}</td>
+    <td>{{ a.fonte.codigo }}</td><td>{{ a.energia_kcal|br(0) }}</td><td>{{ a.medidas|length }}</td></tr>
+  {% else %}<tr><td colspan="5" class="suave">Nenhum alimento encontrado.</td></tr>{% endfor %}
+  </tbody></table></div>
+</section>
+{% endif %}
+
+<section class="cartao">
+  <h2>Fontes carregadas</h2>
+  <table class="tabela"><thead><tr><th>Código</th><th>Nome</th><th>Versão</th><th>Itens</th><th>Licença</th></tr></thead><tbody>
+  {% for f in fontes %}<tr><td>{{ f.codigo }}</td><td>{{ f.nome }}</td><td>{{ f.versao or '—' }}</td><td>{{ contagem.get(f.id, 0) }}</td>
+    <td>{{ 'confirmada' if f.licenca_confirmada else 'pendente' }}</td></tr>
+  {% else %}<tr><td colspan="5" class="suave">Nenhuma.</td></tr>{% endfor %}
+  </tbody></table>
+</section>
+{% endblock %}

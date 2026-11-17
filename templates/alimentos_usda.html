@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block title %}USDA FoodData Central{% endblock %}
+{% block content %}
+<h1>USDA FoodData Central</h1>
+<div class="alerta info">Base norte-americana (domínio público), útil para alimentos industrializados ou ausentes das tabelas brasileiras. Nomes em inglês. Somente o termo buscado é enviado ao USDA; nenhum dado de paciente.</div>
+<form method="get" class="busca"><input type="search" name="q" value="{{ q }}" placeholder="Ex.: oatmeal, chia seeds, whey" required>
+  <button class="btn sec" type="submit">Buscar no USDA</button></form>
+{% if erro %}<div class="alerta erro">{{ erro }}</div>{% endif %}
+{% if achados %}
+<div class="cartao tabela-wrap"><table class="tabela"><thead><tr><th>Alimento</th><th>Tipo</th><th>Categoria</th><th></th></tr></thead><tbody>
+{% for a in achados %}<tr><td>{{ a.nome }}</td><td>{{ a.tipo }}</td><td>{{ a.categoria }}</td><td>
+  <form method="post" class="inline"><input type="hidden" name="_csrf" value="{{ csrf_token() }}"><input type="hidden" name="fdc_id" value="{{ a.fdc_id }}">
+  <button class="btn sec pequeno" type="submit">Importar</button></form></td></tr>{% endfor %}
+</tbody></table></div>
+{% endif %}
+{% endblock %}

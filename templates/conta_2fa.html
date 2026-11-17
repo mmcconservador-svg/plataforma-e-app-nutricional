@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block title %}Conta e segurança{% endblock %}
+{% block content %}
+<h1>Verificação em duas etapas (2FA)</h1>
+{% if codigos %}
+<section class="cartao">
+  <h2>Guarde seus códigos de recuperação</h2>
+  <p>Cada código funciona uma única vez, caso você perca o celular. Eles <strong>não serão mostrados de novo</strong>.</p>
+  <ul class="lista">{% for c in codigos %}<li><code>{{ c }}</code></li>{% endfor %}</ul>
+  <a class="btn" href="/">Concluir</a>
+</section>
+{% elif ativo %}
+<section class="cartao">
+  <p><span class="tag ok">Ativada</span> Sua conta exige o código do aplicativo autenticador ao entrar.</p>
+  <h2>Gerar novos códigos de recuperação</h2>
+  <form method="post"><input type="hidden" name="_csrf" value="{{ csrf_token() }}"><input type="hidden" name="acao" value="novos_codigos">
+    <label>Senha <input type="password" name="senha" required autocomplete="current-password"></label>
+    <button class="btn sec" type="submit">Gerar novos códigos</button></form>
+  <h2>Desativar</h2>
+  <form method="post"><input type="hidden" name="_csrf" value="{{ csrf_token() }}"><input type="hidden" name="acao" value="desativar">
+    <label>Senha <input type="password" name="senha" required autocomplete="current-password"></label>
+    <label>Código atual do aplicativo <input name="codigo" required inputmode="numeric"></label>
+    <button class="btn perigo-btn" type="submit">Desativar 2FA</button></form>
+</section>
+{% else %}
+<section class="cartao">
+  <ol class="lista">
+    <li>Instale um aplicativo autenticador (Google Authenticator, Microsoft Authenticator, Aegis, etc.).</li>
+    <li>Leia o QR code abaixo (ou digite a chave manualmente).</li>
+    <li>Digite o código de 6 dígitos que o aplicativo mostrar.</li>
+  </ol>
+  <div class="qr">{{ qr }}</div>
+  <p>Chave manual: <code>{{ segredo }}</code></p>
+  <form method="post"><input type="hidden" name="_csrf" value="{{ csrf_token() }}"><input type="hidden" name="acao" value="ativar">
+    <label>Código <input name="codigo" required inputmode="numeric" autocomplete="one-time-code"></label>
+    <button class="btn" type="submit">Ativar</button></form>
+</section>
+{% endif %}
+<p><a href="{{ url_for('conta_senha') }}">Alterar minha senha</a></p>
+{% endblock %}

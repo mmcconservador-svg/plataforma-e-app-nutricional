@@ -27,6 +27,13 @@
   {% endfor %}
   </tbody>
 </table>
+{% if pag.pages > 1 %}
+<p class="barra">
+  <span>{% if pag.has_prev %}<a href="{{ url_for('pacientes', p=pag.prev_num, q=q) }}">← Anteriores</a>{% endif %}</span>
+  <span class="suave">Página {{ pag.page }} de {{ pag.pages }} ({{ pag.total }} pacientes)</span>
+  <span>{% if pag.has_next %}<a href="{{ url_for('pacientes', p=pag.next_num, q=q) }}">Próximos →</a>{% endif %}</span>
+</p>
+{% endif %}
 {% else %}<p class="suave">Nenhum paciente encontrado.</p>{% endif %}
 </div>
 {% endblock %}

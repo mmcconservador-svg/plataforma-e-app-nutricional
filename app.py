@@ -12,17 +12,25 @@ from dotenv import load_dotenv
 from flask import (Flask, abort, flash, g, jsonify, make_response, redirect,
                    render_template, request, send_from_directory, session, url_for)
 from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
+from flask_migrate import Migrate
 from markupsafe import Markup, escape
-from werkzeug.security import check_password_hash, generate_password_hash
+from sqlalchemy import and_, inspect, or_, text
+from sqlalchemy.orm import selectinload
+from werkzeug.middleware.proxy_fix import ProxyFix
 
 import anamnese_schema as AS
 import automacao
 import calc
+import equacoes as Q
 import modulos_clinicos as MC
-from models import (Anamnese, AuditLog, Avaliacao, AvaliacaoIntegrativa, AvaliacaoTEA, Consent,
-                    DataRequest, Patient, User, agora, db)
+from models import (Alimento, Anamnese, AuditLog, Avaliacao, AvaliacaoIntegrativa, AvaliacaoTEA,
+                    Cardapio, Consent, DataRequest, Documento, ExameColeta, FoodSource,
+                    MedidaCaseira, Patient, User, agora, db)
 from report import pdf_avaliacao
-from security import init_keys, load_secret, senha_forte
+from security import (hash_senha, init_keys, load_secret, senha_forte, token_consulta,
+                      verificar_senha)
 
 POLICY_VERSION = "1.0"
 IDLE_SECONDS = 30 * 60
@@ -40,14 +48,25 @@ KEYS_DIR = Path(os.environ.get("NUTRI_KEYS_DIR") or DATA_DIR).resolve()
 DATA_DIR.mkdir(parents=True, exist_ok=True)
 KEYS_DIR.mkdir(parents=True, exist_ok=True)
 init_keys(KEYS_DIR)
+def _db_url():
+    u = os.environ.get("DATABASE_URL")
+    if not u:
+        return "sqlite:///" + str(DATA_DIR / "nutri.db")
+    for ant in ("postgres://", "postgresql://"):
+        if u.startswith(ant):
+            return "postgresql+psycopg://" + u[len(ant):]
+    return u
+
+
 app.config.update(
     SECRET_KEY=load_secret(KEYS_DIR),
-    SQLALCHEMY_DATABASE_URI=os.environ.get("DATABASE_URL")
-    or "sqlite:///" + str(DATA_DIR / "nutri.db"),
+    SQLALCHEMY_DATABASE_URI=_db_url(),
+    SQLALCHEMY_ENGINE_OPTIONS={"pool_pre_ping": True},
+    RATELIMIT_ENABLED=os.environ.get("NUTRI_RATELIMIT", "1") != "0",
     SESSION_COOKIE_HTTPONLY=True,
     SESSION_COOKIE_SAMESITE="Lax",
     SESSION_COOKIE_SECURE=os.environ.get("NUTRI_ENV") == "production",
-    MAX_CONTENT_LENGTH=2 * 1024 * 1024,
+    MAX_CONTENT_LENGTH=7 * 1024 * 1024,
     CLINIC={
         "nome_clinica": os.environ.get("CLINICA_NOME", "Nutri Saúde Integral"),
         "nome_pro": os.environ.get("PRO_NOME", "Nome do Profissional"),
@@ -56,9 +75,33 @@ app.config.update(
         "contato_dpo": os.environ.get("DPO_CONTATO", "informe-o-e-mail-do-encarregado@exemplo.com.br"),
     },
 )
+if os.environ.get("NUTRI_PROXY") == "1":  # atrás de nginx/Caddy: IP e HTTPS reais
+    app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
 db.init_app(app)
-with app.app_context():
-    db.create_all()
+migrate = Migrate(app, db)
+limiter = Limiter(get_remote_address, app=app, default_limits=[],
+                  storage_uri=os.environ.get("RATELIMIT_STORAGE_URI", "memory://"))
+DUMMY_HASH = hash_senha("senha-fictícia-para-igualar-tempo")
+
+
+def _migrar_colunas():
+    """Uso local: acrescenta colunas novas (somente aditivo). Em produção use `flask db upgrade`."""
+    insp = inspect(db.engine)
+    with db.engine.begin() as con:
+        for tabela in db.metadata.sorted_tables:
+            if not insp.has_table(tabela.name):
+                continue
+            existentes = {c["name"] for c in insp.get_columns(tabela.name)}
+            for col in tabela.columns:
+                if col.name not in existentes:
+                    tipo = col.type.compile(dialect=db.engine.dialect)
+                    con.execute(text(f'ALTER TABLE "{tabela.name}" ADD COLUMN "{col.name}" {tipo}'))
+
+
+if os.environ.get("NUTRI_ENV") != "production" or os.environ.get("NUTRI_AUTO_CREATE") == "1":
+    with app.app_context():
+        db.create_all()
+        _migrar_colunas()
 
 
 # ───────────────────────── utilidades ─────────────────────────
@@ -73,9 +116,17 @@ def csrf_token():
 
 
 def audit(acao, entidade=None, entidade_id=None, detalhe=None, user_id=None):
+    """Registro de auditoria com hash encadeado (alteração ou remoção de linhas é detectável)."""
+    import hashlib
     uid = user_id if user_id is not None else (g.user.id if getattr(g, "user", None) else None)
-    db.session.add(AuditLog(user_id=uid, acao=acao, entidade=entidade, entidade_id=entidade_id,
-                            ip=(request.remote_addr or "")[:64], detalhe=(detalhe or "")[:255]))
+    ts = agora().replace(microsecond=0)
+    ip = (request.remote_addr or "")[:64]
+    det = (detalhe or "")[:255]
+    ultimo = AuditLog.query.order_by(AuditLog.id.desc()).first()  # autoflush inclui linhas pendentes
+    prev = (ultimo.hash if ultimo and ultimo.hash else "0" * 64)
+    h = hashlib.sha256(f"{prev}|{ts.isoformat()}|{uid}|{acao}|{entidade}|{entidade_id}|{ip}|{det}".encode()).hexdigest()
+    db.session.add(AuditLog(ts=ts, user_id=uid, acao=acao, entidade=entidade, entidade_id=entidade_id,
+                            ip=ip, detalhe=det, hash=h))
 
 
 def num(form, nome, rotulo, lo, hi, obrigatorio=True):
@@ -178,7 +229,7 @@ def f_dt(d):
 @app.context_processor
 def inject():
     return {"csrf_token": csrf_token, "clinic": app.config["CLINIC"], "policy_version": POLICY_VERSION,
-            "fatores": calc.FATORES_ATIVIDADE, "condicoes": calc.CONDICOES, "hoje": date.today()}
+            "fatores": calc.FATORES_ATIVIDADE, "Q": Q, "condicoes": calc.CONDICOES, "hoje": date.today()}
 
 
 # ───────────────────────── sessão, CSRF, cabeçalhos ─────────────────────────
@@ -203,6 +254,11 @@ def carregar_usuario():
         tok = session.get("csrf", "")
         if not tok or not secrets.compare_digest(tok, request.form.get("_csrf", "")):
             abort(400, "Formulário expirado. Volte e tente novamente.")
+    if (g.user and g.user.papel == "profissional" and os.environ.get("NUTRI_REQUIRE_2FA") == "1"
+            and not g.user.totp_ativo
+            and request.endpoint not in ("conta_2fa", "logout", "privacidade", "static", "offline",
+                                         "service_worker", "manifest")):
+        return redirect(url_for("conta_2fa"))
 
 
 @app.after_request
@@ -275,7 +331,12 @@ def index():
 @app.get("/dashboard")
 @pro
 def dashboard():
-    todos = Patient.query.filter_by(owner_id=g.user.id).all()
+    todos = (Patient.query.filter_by(owner_id=g.user.id)
+             .options(selectinload(Patient.avaliacoes), selectinload(Patient.anamneses),
+                      selectinload(Patient.integrativas), selectinload(Patient.teas),
+                      selectinload(Patient.consentimentos), selectinload(Patient.solicitacoes),
+                      selectinload(Patient.exames), selectinload(Patient.cardapios))
+             .all())
     pn = automacao.painel(todos)
     abertas = (DataRequest.query.join(Patient)
                .filter(Patient.owner_id == g.user.id, DataRequest.status == "aberta").count())
@@ -286,31 +347,52 @@ def dashboard():
     return render_template("dashboard.html", pn=pn, abertas=abertas, graf_imc=graf_imc, graf_prog=graf_prog)
 
 
+def falha_login(u, detalhe=None):
+    if u:
+        u.tentativas = (u.tentativas or 0) + 1
+        if u.tentativas >= MAX_TENTATIVAS:
+            u.bloqueado_ate = agora() + timedelta(minutes=BLOQUEIO_MIN)
+            u.tentativas = 0
+    audit("login_falha", "usuario", u.id if u else None, detalhe, user_id=u.id if u else 0)
+    db.session.commit()
+
+
+def concluir_login(u, via="senha"):
+    u.tentativas, u.bloqueado_ate = 0, None
+    audit("login", "usuario", u.id, via, user_id=u.id)
+    db.session.commit()
+    session.clear()  # evita fixação de sessão
+    session["uid"], session["last"] = u.id, time.time()
+
+
 @app.route("/login", methods=["GET", "POST"])
+@limiter.limit("20 per minute", methods=["POST"])
 def login():
     if request.method == "POST":
         email = (request.form.get("email") or "").strip().lower()
         senha = request.form.get("senha") or ""
         u = User.query.filter_by(email=email).first()
-        generico = "E-mail ou senha incorretos."
         if u and u.bloqueado_ate and u.bloqueado_ate > agora():
             flash("Acesso temporariamente bloqueado por tentativas excessivas. Tente mais tarde.", "erro")
-        elif u and u.ativo and check_password_hash(u.senha_hash, senha):
-            u.tentativas, u.bloqueado_ate = 0, None
-            audit("login", "usuario", u.id, user_id=u.id)
-            db.session.commit()
-            session.clear()  # evita fixação de sessão
-            session["uid"], session["last"] = u.id, time.time()
-            return redirect(url_for("index"))
         else:
-            if u:
-                u.tentativas += 1
-                if u.tentativas >= MAX_TENTATIVAS:
-                    u.bloqueado_ate = agora() + timedelta(minutes=BLOQUEIO_MIN)
-                    u.tentativas = 0
-            audit("login_falha", "usuario", u.id if u else None, user_id=u.id if u else 0)
-            db.session.commit()
-            flash(generico, "erro")
+            if u and u.ativo:
+                ok, rehash = verificar_senha(u.senha_hash, senha)
+            else:
+                verificar_senha(DUMMY_HASH, senha)  # iguala o tempo de resposta (não revela se o e-mail existe)
+                ok, rehash = False, False
+            if ok:
+                if rehash:
+                    u.senha_hash = hash_senha(senha)
+                if u.totp_ativo:
+                    session.clear()
+                    session["pre2fa"], session["pre2fa_ts"] = u.id, time.time()
+                    audit("login_senha_ok", "usuario", u.id, user_id=u.id)
+                    db.session.commit()
+                    return redirect(url_for("login_2fa"))
+                concluir_login(u)
+                return redirect(url_for("index"))
+            falha_login(u)
+            flash("E-mail ou senha incorretos.", "erro")
     return render_template("login.html")
 
 
@@ -324,6 +406,7 @@ def logout():
 
 
 @app.route("/convite/<token>", methods=["GET", "POST"])
+@limiter.limit("20 per minute", methods=["POST"])
 def convite(token):
     try:
         pid = serializer().loads(token, max_age=INVITE_MAX_AGE)["pid"]
@@ -344,7 +427,7 @@ def convite(token):
         if erro:
             flash(erro, "erro")
         else:
-            u = User(email=p.email.lower(), senha_hash=generate_password_hash(senha),
+            u = User(email=p.email.lower(), senha_hash=hash_senha(senha),
                      papel="paciente", nome=p.nome)
             db.session.add(u)
             db.session.flush()
@@ -363,13 +446,25 @@ def convite(token):
 @app.get("/pacientes")
 @pro
 def pacientes():
-    q = (request.args.get("q") or "").strip().lower()
-    lista = Patient.query.filter_by(owner_id=g.user.id).order_by(Patient.id.desc()).all()
-    if q:  # nome é criptografado → filtro em memória
-        lista = [p for p in lista if q in p.nome.lower() or q in p.codigo.lower()]
+    import re
+    q = (request.args.get("q") or "").strip()
+    try:
+        pagina = max(1, int(request.args.get("p", 1)))
+    except ValueError:
+        pagina = 1
+    consulta = Patient.query.filter_by(owner_id=g.user.id)
+    if q:
+        tokens = [t for t in (token_consulta(w) for w in q.split()) if t]
+        cod = re.sub(r"[%_\\]", "", q)
+        cond = Patient.codigo.ilike(f"%{cod}%")
+        if tokens:
+            cond = or_(cond, and_(*[Patient.busca.contains(t) for t in tokens]))
+        consulta = consulta.filter(cond)
+    pag = (consulta.options(selectinload(Patient.avaliacoes))
+           .order_by(Patient.id.desc()).paginate(page=pagina, per_page=25, error_out=False))
     abertas = (DataRequest.query.join(Patient).filter(Patient.owner_id == g.user.id,
                                                       DataRequest.status == "aberta").count())
-    return render_template("pacientes.html", lista=lista, q=q, abertas=abertas)
+    return render_template("pacientes.html", pag=pag, lista=pag.items, q=q, abertas=abertas)
 
 
 def _ler_paciente(form, p=None):
@@ -412,6 +507,7 @@ def paciente_novo():
             return render_template("paciente_form.html", p=None, f=request.form)
         p = Patient(codigo=novo_codigo(), owner_id=g.user.id, **dados)
         db.session.add(p)
+        p.atualizar_busca()
         db.session.flush()
         if request.form.get("c_presencial"):
             registrar_consentimento(p, "tratamento_saude", True, "presencial")
@@ -435,6 +531,7 @@ def paciente_editar(pid):
             dados.pop("email")  # e-mail de login só muda por solicitação de correção
         for k, v in dados.items():
             setattr(p, k, v)
+        p.atualizar_busca()
         audit("paciente_editado", "paciente", p.id)
         db.session.commit()
         return redirect(url_for("paciente", pid=p.id))
@@ -525,6 +622,33 @@ def anamnese_revisar(pid, aid):
 
 
 # ── avaliações ──
+def _ler_extras(f, paciente, data_av):
+    """Dobras, protocolo e circunferência do braço (validados)."""
+    ex = {}
+    prot = f.get("protocolo") or ""
+    dob = {}
+    for k, rot in Q.DOBRAS.items():
+        v = num(f, f"dob_{k}", f"a dobra {rot.lower()}", 1, 80, obrigatorio=False)
+        if v:
+            dob[k] = v
+    if prot:
+        if prot not in Q.PROTOCOLOS:
+            raise ValueError("Protocolo de dobras inválido.")
+        ex["protocolo"] = prot
+        ex["conversao"] = "brozek" if f.get("conversao") == "brozek" else "siri"
+        idade = calc.idade_em(paciente.nascimento, data_av)
+        if idade is None:
+            raise ValueError("Cadastre a data de nascimento para calcular o % de gordura por dobras.")
+        Q.gordura_por_dobras(prot, paciente.sexo, idade, dob, ex["conversao"])  # valida (levanta ValueError)
+    if dob:
+        ex["dobras"] = dob
+    cb = num(f, "cb", "a circunferência do braço", 10, 100, obrigatorio=False)
+    dct = num(f, "dct", "a dobra tricipital (braço)", 1, 80, obrigatorio=False)
+    if cb and dct:
+        ex["cb"], ex["dct"] = cb, dct
+    return ex
+
+
 @app.route("/pacientes/<int:pid>/avaliacao/nova", methods=["GET", "POST"])
 @pro
 def avaliacao_nova(pid):
@@ -542,8 +666,21 @@ def avaliacao_nova(pid):
             condicao = f.get("condicao", "nenhuma")
             if condicao not in calc.CONDICOES:
                 raise ValueError("Condição inválida.")
+            equacao = f.get("equacao") or None
+            if equacao and equacao not in Q.EQUACOES:
+                raise ValueError("Equação inválida.")
+            peso_base = f.get("peso_base", "atual")
+            if peso_base not in ("atual", "ideal", "ajustado"):
+                raise ValueError("Peso de cálculo inválido.")
+            inj = f.get("injuria", "nenhum")
+            if inj not in Q.FATORES_INJURIA:
+                raise ValueError("Fator de injúria inválido.")
+            extras = _ler_extras(f, p, d)
             av = Avaliacao(
                 paciente_id=p.id, autor_id=g.user.id, data=d, fator=fator, condicao=condicao,
+                equacao=equacao, peso_base=peso_base, fator_injuria=Q.FATORES_INJURIA[inj][1],
+                fator_valor=num(f, "fator_valor", "o fator de atividade personalizado", 1.0, 2.5, obrigatorio=False),
+                extras=json.dumps(extras) if extras else None,
                 peso=num(f, "peso", "o peso", 2, 500),
                 altura_cm=num(f, "altura_cm", "a altura (cm)", 50, 250),
                 cintura=num(f, "cintura", "a circunferência abdominal", 20, 300),
@@ -557,15 +694,19 @@ def avaliacao_nova(pid):
             )
         except ValueError as e:
             flash(str(e), "erro")
-            return render_template("avaliacao_form.html", p=p, f=f, ultima=ultima)
+            return render_template("avaliacao_form.html", p=p, f=f, ultima=ultima, Q=Q)
         db.session.add(av)
         audit("avaliacao_criada", "paciente", p.id)
         db.session.commit()
+        if "tmb" not in calc.avaliar(av, p):
+            flash("Avaliação salva, mas a equação escolhida não pôde ser aplicada (veja os avisos).", "aviso")
         return redirect(url_for("avaliacao_ver", pid=p.id, aid=av.id))
+    menor = p.menor
     padrao = {"data": date.today().isoformat(), "altura_cm": f"{ultima.altura_cm:g}" if ultima else "",
               "fator": ultima.fator if ultima else "leve", "pct_carb": 50, "pct_prot": 20, "pct_lip": 30,
-              "ajuste_kcal": 0, "condicao": "nenhuma"}
-    return render_template("avaliacao_form.html", p=p, f=padrao, ultima=ultima)
+              "ajuste_kcal": 0, "condicao": "nenhuma", "equacao": "schofield" if menor else Q.PADRAO,
+              "peso_base": "atual", "injuria": "nenhum"}
+    return render_template("avaliacao_form.html", p=p, f=padrao, ultima=ultima, Q=Q)
 
 
 def _av(p, aid):
@@ -720,6 +861,11 @@ def exportar(p):
         "responsavel_legal": {"nome": p.responsavel_nome, "contato": p.responsavel_contato},
         "avaliacoes_integrativas": [{"data": iso(i.data), **i.dados} for i in reversed(p.integrativas)],
         "avaliacoes_tea": [{"data": iso(t.data), **t.dados} for t in reversed(p.teas)],
+        "cardapios": [{"titulo": c.titulo, "data": iso(c.criado_em), "metas": c.metas_dict,
+                       "estrutura": c.estrutura} for c in reversed(p.cardapios)],
+        "exames": [{"data_coleta": iso(e.data_coleta), "laboratorio": e.laboratorio, "itens": e.itens,
+                    "observacoes": e.observacoes} for e in reversed(p.exames)],
+        "documentos": [{"nome": d.nome, "data": iso(d.criado_em), "tamanho_bytes": d.tamanho} for d in p.documentos],
         "consentimentos": [{"tipo": c.tipo, "aceito": c.aceito, "versao": c.versao, "origem": c.origem,
                             "data": iso(c.data)} for c in p.consentimentos],
         "solicitacoes": [{"tipo": s.tipo, "status": s.status, "data": iso(s.criado_em)} for s in p.solicitacoes],
@@ -742,6 +888,13 @@ def exportar_pro(pid):
     return _json_download(exportar(p), f"prontuario-{p.codigo}.json")
 
 
+def _apagar_arquivo(nome):
+    try:
+        (DATA_DIR / "uploads" / nome).unlink()
+    except OSError:
+        pass
+
+
 def anonimizar(p):
     """Elimina dados identificáveis e conteúdo de anamnese; mantém apenas medidas sem identificação."""
     p.nome = f"Paciente anonimizado {p.codigo}"
@@ -752,6 +905,14 @@ def anonimizar(p):
     for av in p.avaliacoes:
         av.observacoes = None
     p.responsavel_nome = p.responsavel_contato = None
+    p.busca = None
+    for c in p.cardapios:
+        c.conteudo, c.metas, c.titulo = '{"dias": []}', None, "removido"
+    for e in p.exames:
+        e.resultados, e.observacoes = '{"itens": {}}', None
+    for d in p.documentos:
+        _apagar_arquivo(d.arquivo)
+        d.nome = "removido"
     for i in p.integrativas:
         i.conteudo = '{"notas": {}, "obs": {}}'
     for t in p.teas:
@@ -982,7 +1143,7 @@ def criar_profissional():
         raise SystemExit(erro)
     if User.query.filter_by(email=email).first():
         raise SystemExit("E-mail já cadastrado.")
-    db.session.add(User(email=email, nome=nome, papel="profissional", senha_hash=generate_password_hash(senha)))
+    db.session.add(User(email=email, nome=nome, papel="profissional", senha_hash=hash_senha(senha)))
     db.session.commit()
     print("Profissional criado.")
 
@@ -1006,10 +1167,12 @@ def garantir_profissional():
             print("As senhas não coincidem.")
         else:
             break
-    db.session.add(User(email=email, nome=nome, papel="profissional", senha_hash=generate_password_hash(senha)))
+    db.session.add(User(email=email, nome=nome, papel="profissional", senha_hash=hash_senha(senha)))
     db.session.commit()
     print("Profissional criado.")
 
 
-if __name__ == "__main__":
-    app.run(debug=os.environ.get("NUTRI_ENV") != "production", port=int(os.environ.get("PORT", 5000)))
+# Módulos de rotas (importados ao final para usar os utilitários definidos acima)
+import rotas_alimentos  # noqa: E402,F401
+import rotas_conta  # noqa: E402,F401
+import rotas_exames  # noqa: E402,F401

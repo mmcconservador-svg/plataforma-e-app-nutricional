@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block title %}Nova senha{% endblock %}
+{% block content %}
+<section class="cartao estreito">
+  <h1>Criar nova senha</h1>
+  <form method="post">
+    <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+    <label>Nova senha (mín. 10, letras e números) <input type="password" name="nova" required minlength="10" autocomplete="new-password"></label>
+    <label>Repita a senha <input type="password" name="conf" required minlength="10" autocomplete="new-password"></label>
+    <button class="btn" type="submit">Salvar</button>
+  </form>
+</section>
+{% endblock %}

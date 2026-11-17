@@ -41,6 +41,12 @@
       <button class="btn sec" type="submit">Gerar convite para o portal</button>
     </form>
     {% endif %}
+    {% if p.user_id and not p.anonimizado_em %}
+    <form method="post" action="{{ url_for('paciente_redefinir', pid=p.id) }}">
+      <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+      <button class="btn sec" type="submit">Gerar link de nova senha</button>
+    </form>
+    {% endif %}
   </section>
 
   <section class="cartao">
@@ -91,6 +97,18 @@
     {% else %}<tr><td colspan="6" class="suave">Nenhuma avaliação registrada.</td></tr>{% endfor %}
     </tbody>
   </table>
+</section>
+
+<section class="cartao">
+  <div class="barra"><h2>Exames laboratoriais</h2>
+    {% if not p.anonimizado_em %}<a class="btn sec" href="{{ url_for('exame_novo', pid=p.id) }}">+ Novo</a>{% endif %}</div>
+  <ul class="lista">{% for x in p.exames %}<li><a href="{{ url_for('exame_ver', pid=p.id, eid=x.id) }}">{{ x.data_coleta|dmy }}</a>{% if x.laboratorio %} — {{ x.laboratorio }}{% endif %}</li>{% else %}<li class="suave">Nenhum exame registrado.</li>{% endfor %}</ul>
+</section>
+
+<section class="cartao">
+  <div class="barra"><h2>Cardápios</h2>
+    {% if not p.anonimizado_em %}<a class="btn sec" href="{{ url_for('cardapio_novo', pid=p.id) }}">+ Novo</a>{% endif %}</div>
+  <ul class="lista">{% for c in p.cardapios %}<li><a href="{{ url_for('cardapio_ver', pid=p.id, cid=c.id) }}">{{ c.titulo }}</a> — {{ c.criado_em|dt }} {{ '(liberado)' if c.liberado }}</li>{% else %}<li class="suave">Nenhum cardápio.</li>{% endfor %}</ul>
 </section>
 
 <section class="cartao">

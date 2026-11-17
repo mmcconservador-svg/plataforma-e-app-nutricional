@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block title %}Exames {{ e.data_coleta|dmy }}{% endblock %}
+{% block content %}
+<div class="barra"><div><h1>Exames de {{ e.data_coleta|dmy }}</h1><p class="suave">{{ p.nome }} · {{ p.codigo }}{% if e.laboratorio %} · {{ e.laboratorio }}{% endif %} · regras v{{ e.regras_versao }}</p></div>
+  <a class="btn sec" href="{{ url_for('paciente', pid=p.id) }}">Voltar</a></div>
+<div class="alerta info">Apoio à decisão do nutricionista: os achados abaixo são <strong>hipóteses para correlação clínica</strong>, não diagnóstico (Lei 8.234/1991; Recomendação CFN 005/2016). A classificação usa o intervalo do laboratório informado.</div>
+
+{% if achados %}
+<section class="cartao"><h2>Achados para correlação clínica</h2>
+  {% for a in achados %}
+  <div class="alerta {{ {'alerta':'atencao','atencao':'aviso','info':'info'}[a.nivel] }}">
+    <strong>{{ a.titulo }}</strong><br>{{ a.texto }}
+    {% if a.implicacao %}<br><em>Implicação nutricional:</em> {{ a.implicacao }}{% endif %}
+    {% if a.encaminhar %}<br><strong>Considerar encaminhamento/discussão com o médico.</strong>{% endif %}
+    <br><span class="nota">Fonte: {{ a.fonte }} · {{ a.regra }} ({{ a.status }})</span>
+  </div>{% endfor %}
+</section>
+{% endif %}
+
+{% for cat, linhas in por_cat.items() %}
+<section class="cartao"><h2>{{ cat }}</h2>
+  <div class="tabela-wrap"><table class="tabela"><thead><tr><th>Exame</th><th>Resultado</th><th>Referência</th><th>Situação</th></tr></thead><tbody>
+  {% for l in linhas %}<tr><td>{{ l.nome }}</td><td>{{ l.valor|br(l.casas) }} {{ l.unidade }}</td>
+    <td>{% if l.min is not none and l.max is not none %}{{ l.min|br(l.casas) }}–{{ l.max|br(l.casas) }}{% elif l.max is not none %}até {{ l.max|br(l.casas) }}{% elif l.min is not none %}≥ {{ l.min|br(l.casas) }}{% else %}—{% endif %}</td>
+    <td class="status-{{ 'ok' if l.status=='normal' else l.status or '' }}">{{ {'normal':'dentro do intervalo','baixo':'abaixo','alto':'acima'}.get(l.status, 'sem intervalo informado') }}</td></tr>{% endfor %}
+  </tbody></table></div>
+</section>
+{% endfor %}
+
+{% if calculados %}
+<section class="cartao"><h2>Valores calculados</h2>
+  <table class="tabela"><tbody>
+  {% for k, c in calculados.items() %}<tr><td>{{ c.nome }}</td><td>{{ c.valor|br(1 if k!='egfr' else 0) }} {{ c.unidade }}{% if c.extra %} — {{ c.extra }}{% endif %}</td><td class="suave">{{ c.formula }}</td></tr>{% endfor %}
+  </tbody></table>
+</section>
+{% endif %}
+
+{% if graficos %}<section class="cartao"><h2>Evolução</h2><div class="graficos">{% for nome, gr in graficos %}{{ gr }}{% endfor %}</div></section>{% endif %}
+
+{% if e.observacoes %}<section class="cartao"><h2>Observações</h2><p class="pre">{{ e.observacoes }}</p></section>{% endif %}
+
+<section class="cartao"><h2>Laudos em PDF</h2>
+  <ul class="lista">{% for d in p.documentos if d.exame_id == e.id %}<li><a target="_blank" href="{{ url_for('documento_baixar', pid=p.id, did=d.id) }}">{{ d.nome }}</a> ({{ (d.tamanho/1024)|br(0) }} KB)</li>{% else %}<li class="suave">Nenhum PDF anexado.</li>{% endfor %}</ul>
+  {% if not p.anonimizado_em %}<form method="post" enctype="multipart/form-data" action="{{ url_for('exame_documento', pid=p.id, eid=e.id) }}">
+    <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+    <label>Anexar PDF <input type="file" name="pdf" accept="application/pdf,.pdf" required></label>
+    <button class="btn sec" type="submit">Anexar</button></form>{% endif %}
+  <p class="nota">Arquivos ficam criptografados em disco e só você os acessa.</p>
+</section>
+{% endblock %}

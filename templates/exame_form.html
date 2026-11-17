@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block title %}Novo exame{% endblock %}
+{% block content %}
+<h1>Exames laboratoriais — {{ p.nome }}</h1>
+<div class="alerta info">Digite os resultados e, <strong>sempre que possível, o intervalo de referência do laboratório</strong> (ele prevalece sobre qualquer referência genérica). O sistema organiza achados para a sua correlação clínica; <strong>não diagnostica doenças</strong> (Recomendação CFN 005/2016).</div>
+<form method="post" enctype="multipart/form-data" class="cartao">
+  <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+  <div class="grade">
+    <label>Data da coleta <input type="date" name="data_coleta" required value="{{ f.get('data_coleta','') }}"></label>
+    <label>Laboratório <input name="laboratorio" maxlength="120" value="{{ f.get('laboratorio','') }}"></label>
+    <label>Meta de LDL definida pelo médico (mg/dL, opcional) <input name="meta_ldl" inputmode="decimal" value="{{ f.get('meta_ldl','') }}"></label>
+    <label>Anexar PDF do laudo (opcional, até 5 MB) <input type="file" name="pdf" accept="application/pdf,.pdf"></label>
+  </div>
+  {% for cat in EX.CATEGORIAS %}
+  <details class="cartao" {{ 'open' if loop.first }}><summary><h2>{{ cat }}</h2></summary>
+    <div class="tabela-wrap"><table class="tabela"><thead><tr><th>Exame</th><th>Resultado</th><th>Unidade</th><th>Ref. mín.</th><th>Ref. máx.</th></tr></thead><tbody>
+    {% for k, (nome, c, padrao, alt, _n) in EX.CATALOGO.items() if c == cat %}
+      <tr><td>{{ nome }}</td>
+        <td><input name="v_{{ k }}" inputmode="decimal" value="{{ f.get('v_' ~ k,'') }}"></td>
+        <td><select name="u_{{ k }}">{% for u in EX.unidades(k) %}<option {{ 'selected' if f.get('u_' ~ k)==u }}>{{ u }}</option>{% endfor %}</select></td>
+        <td><input name="min_{{ k }}" inputmode="decimal" value="{{ f.get('min_' ~ k,'') }}"></td>
+        <td><input name="max_{{ k }}" inputmode="decimal" value="{{ f.get('max_' ~ k,'') }}"></td></tr>
+    {% endfor %}
+    </tbody></table></div>
+  </details>
+  {% endfor %}
+  <label>Observações clínicas <textarea name="observacoes" rows="3" maxlength="4000">{{ f.get('observacoes','') }}</textarea></label>
+  <button class="btn" type="submit">Salvar e interpretar</button>
+  <a class="btn sec" href="{{ url_for('paciente', pid=p.id) }}">Cancelar</a>
+</form>
+{% endblock %}

@@ -1,58 +1,31 @@
-# Nutri Saúde Integral — plataforma de avaliação nutricional (PC + app)
+# Nutri Saúde Integral — plataforma de avaliação nutricional (PC + app/PWA)
 
-Aplicativo web responsivo (Flask) que funciona no computador e **instala como app no celular (PWA)**.
-Dois perfis: **profissional** e **paciente** (portal com login individual).
+Flask + SQLite (ou PostgreSQL). Roda no PC e instala como app no celular (PWA). Foco em LGPD.
 
-## Como rodar
-
-```bash
-pip install -r requirements.txt
-flask --app app criar-profissional     # cria seu usuário (senha mín. 10 caracteres, letras e números)
-python app.py                          # http://localhost:5000
-python -m unittest discover -s tests   # testes
+## Início rápido
 ```
-
-Instalar no celular: abra o endereço (em produção, via HTTPS) no navegador → "Adicionar à tela inicial".
-Para Play Store/Android nativo, o mesmo site pode ser empacotado depois (TWA/Capacitor).
+pip install -r requirements.txt
+cp .env.example .env        # edite identidade do profissional e SECRET
+python -m flask --app app criar-profissional     # cria o acesso
+python servir.py                                  # http://localhost:5000
+```
+Windows: `iniciar.bat` · Linux/macOS: `iniciar.sh`. Testes: `python -m pytest tests -q`.
 
 ## Módulos
+- **Avaliação antropométrica**: 11 equações de TMB/GET (cada uma marcada *verificada* ou *literatura*), fatores de atividade (clássicos e FAO/OMS 2004), fatores de injúria, 6 protocolos de dobras, circunferências/AMB, comparação de todas as equações.
+- **Alimentos e cardápios**: TACO, TBCA, IBGE (medidas caseiras), USDA FDC e alimentos próprios; fatores de correção (FC) e cocção (FCoc); equivalentes por nutriente; metas × atingido (±10%); lista de compras em peso bruto; **%VD ANVISA** (IN 75/2020, Anexo II).
+- **Exames**: entrada manual com intervalo do laboratório, conversão de unidades, valores calculados (não-HDL, Friedewald, HOMA-IR, TFG CKD-EPI 2021), achados **para correlação clínica** com fonte e versão das regras; PDF anexado e criptografado.
+- **Integrativa (8 remédios naturais)** e **TEA** (triagem alimentar).
+- **Dashboard** e alertas por regras transparentes (sem IA generativa; nada sai a terceiros).
+- **Portal do paciente**: só vê o que o profissional validar e liberar.
 
-- **Dashboard**: indicadores, estado nutricional, pendências e alertas.
-- **Prontuário individual**: cadastro, histórico de versões, exportação JSON, PDF.
-- **Anamnese** em 16 abas + saúde integrativa; o paciente pode preencher no portal; você revisa.
-- **Antropometria e cálculos**: IMC, RCQ, RCE, TMB (Mifflin-St Jeor), GET, VET, macros, fibras, água, avisos de limitação (crianças, idosos, gestantes, atletas).
-- **Avaliação integrativa**: oito remédios naturais (notas 0–10, comparação entre datas, metas sugeridas).
-- **Avaliação alimentar no TEA**: repertório, seletividade, sensorial, comportamento, GI, escore-z (OMS) e triagem interna.
-- **Automação inteligente**: regras transparentes (reavaliação em 30 dias, variação de peso, pendências, prazos LGPD…). Não usa IA externa, não diagnostica e nada vai ao paciente sem sua liberação.
+## LGPD e segurança
+Campos sensíveis criptografados (Fernet, rotação de chaves), índice cego para busca por nome, consentimentos imutáveis, consentimento específico para dado espiritual, responsável legal para menores (art. 14), exportação e anonimização, trilha de auditoria encadeada por hash, Argon2id, 2FA TOTP com códigos de recuperação, bloqueio por tentativas, CSRF, CSP, sessão com expiração. Veja `docs/`.
 
-## LGPD e segurança implementadas
+## Tabelas de alimentos — IMPORTANTE
+As tabelas oficiais **não vêm embutidas** (licenças próprias). Baixe nas fontes e importe em *Alimentos → Importar*, confirmando a licença:
+[TACO/NEPA-UNICAMP](https://www.gov.br/agricultura/pt-br/assuntos/inspecao/produtos-vegetal/legislacao-programas-nacionais-e-seguranca-dos-alimentos-1/legislacao/legislacao-vinhos-e-bebidas/tabela-brasileira-de-composicao-de-alimentos_taco_2011.pdf) · [TBCA/USP](https://www.tbca.net.br/) · [IBGE POF](https://www.ibge.gov.br/) · [USDA FoodData Central](https://fdc.nal.usda.gov/download-datasets). Modelos de planilha em `modelos_importacao/`. USDA: `flask --app app importar-usda PASTA` ou busca online com `USDA_API_KEY`.
+Fatores FC/FCoc: planilha com colunas alimento, fator de correção, fator de cocção (`importar-fatores`).
 
-| Requisito | Como está feito |
-|---|---|
-| Dados sensíveis de saúde | Campos criptografados em repouso (Fernet/AES); chaves em `NUTRI_FIELD_KEYS` ou `instance/field.key` |
-| Consentimento | Registro imutável com tipo, versão, origem e data; revogar = nova linha |
-| Dado espiritual (religião) | Consentimento específico e opcional; sem ele o campo nem é gravado; revogar apaga de todas as versões |
-| Menores (art. 14) | Responsável legal obrigatório para menores de 18 anos |
-| Direitos do titular (art. 18) | Portal "Meus dados e direitos": baixar dados, corrigir, informar, excluir, revogar; fila de solicitações com prazo |
-| Eliminação | Anonimização irreversível (confirmação por código) |
-| Controle de acesso | Papéis; cada paciente só vê o próprio portal; cada profissional só vê seus pacientes |
-| Validação profissional | Paciente só vê avaliações que você liberar |
-| Autenticação | Hash de senha, bloqueio após 5 tentativas, sessão expira em 30 min, CSRF, cookies HttpOnly/SameSite |
-| Auditoria | Log de acessos e alterações (sem conteúdo clínico) |
-| Navegador/app | CSP restritiva, `no-store`, service worker que nunca guarda páginas de saúde |
-| Política de privacidade | Modelo em `/privacidade` (**revisar com advogado**) |
-
-## Antes de usar com pacientes reais (produção)
-
-1. Hospedar com **HTTPS** e `NUTRI_ENV=production`; rodar com `gunicorn app:app`.
-2. Definir `SECRET_KEY` e `NUTRI_FIELD_KEYS` por variável de ambiente e **guardar as chaves em local separado do banco** (sem elas os dados ficam ilegíveis). Para rotacionar, coloque a nova chave primeiro, separadas por vírgula.
-3. Configurar `DPO_CONTATO` (e-mail do canal do titular), `PRO_NOME`, `PRO_REGISTRO`.
-4. Backup automático **criptografado** e testado de `instance/` (ou do MySQL).
-5. Revisar a política de privacidade, prazos de guarda do prontuário (CFN) e o RIPD com apoio jurídico.
-6. Convites do portal hoje geram um link para você enviar; integrar e-mail/WhatsApp é a próxima etapa.
-
-## Limites conhecidos
-
-- Banco de alimentos (TACO/TBCA), cardápios, exames e pagamentos ainda não estão nesta versão (etapas 2–4 do seu plano).
-- Escore-z pediátrico é digitado (OMS); curvas completas não estão embutidas.
-- A triagem TEA e os escores integrativos são **ferramentas internas de apoio**, não instrumentos validados nem diagnósticos.
+## Aviso
+Ferramenta de apoio ao profissional. Não faz diagnóstico nosológico (Lei 8.234/1991; Rec. CFN 005/2016). Regras e fórmulas devem ser revisadas periodicamente. Faça revisão jurídica (LGPD, prontuário, eventual enquadramento como software médico — ANVISA RDC 657/2022) antes do uso com pacientes reais.

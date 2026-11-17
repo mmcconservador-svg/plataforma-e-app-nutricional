@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+{% block title %}{{ c.titulo }}{% endblock %}
+{% block content %}
+<div class="barra">
+  <div><h1>{{ c.titulo }}</h1><p class="suave">{{ p.nome }} · {{ p.codigo }} · {{ c.criado_em|dt }}</p></div>
+  <div class="acoes">
+    <a class="btn sec" target="_blank" href="{{ url_for('portal_cardapio_pdf', cid=c.id) if portal else url_for('cardapio_pdf', pid=p.id, cid=c.id) }}">PDF</a>
+    {% if not portal %}<a class="btn sec" href="{{ url_for('cardapio_novo', pid=p.id, base=c.id) }}">Nova versão</a>{% endif %}
+    <a class="btn sec" href="{{ url_for('portal_cardapios') if portal else url_for('paciente', pid=p.id) }}">Voltar</a>
+  </div>
+</div>
+{% if ce.incompleto %}<div class="alerta aviso">Alguns alimentos têm dados nutricionais incompletos na tabela de origem; os totais podem estar subestimados.</div>{% endif %}
+
+{% if comp_media %}
+<section class="cartao">
+  <h2>Meta × atingido{{ ' (média diária)' if ce.dias|length > 1 }}</h2>
+  <table class="tabela"><thead><tr><th>Nutriente</th><th>Atingido</th><th>Meta</th><th>%</th><th></th></tr></thead><tbody>
+  {% for x in comp_media %}<tr><td>{{ x.rotulo }}</td><td>{{ x.atingido|br(0) }}</td><td>{{ x.meta|br(0) }}</td><td>{{ x.pct|br(0) }}%</td>
+    <td class="status-{{ 'ok' if x.status=='ok' else 'alto' }}">{{ {'ok':'✔ dentro de ±10%','abaixo':'↓ abaixo','acima':'↑ acima'}[x.status] }}</td></tr>{% endfor %}
+  </tbody></table>
+</section>
+{% endif %}
+
+{% for d in ce.dias %}
+<section class="cartao">
+  <h2>{{ d.nome }}</h2>
+  {% for r in d.refeicoes if r.itens %}
+    <h3>{{ r.nome }}{% if r.horario %} — {{ r.horario }}{% endif %}</h3>
+    <div class="tabela-wrap"><table class="tabela">
+      <thead><tr><th>Alimento</th><th>Quantidade</th><th>kcal</th><th>P</th><th>C</th><th>L</th>{% if not portal %}<th></th>{% endif %}</tr></thead>
+      <tbody>
+      {% for it in r.itens %}
+        <tr><td>{{ it.alimento.nome }}</td><td>{{ qtd(it) }}</td><td>{{ it.kcal|br(0) }}</td><td>{{ it.p|br }}</td><td>{{ it.c|br }}</td><td>{{ it.l|br }}</td>
+          {% if not portal %}<td><a href="{{ url_for('alimento', aid=it.alimento.id, g=it.g, criterio='carboidrato') }}">trocas</a></td>{% endif %}</tr>
+      {% endfor %}
+        <tr><td colspan="2"><strong>Total da refeição</strong></td><td>{{ r.total.kcal|br(0) }}</td><td>{{ r.total.p|br }}</td><td>{{ r.total.c|br }}</td><td>{{ r.total.l|br }}</td>{% if not portal %}<td></td>{% endif %}</tr>
+      </tbody></table></div>
+  {% endfor %}
+  <p><strong>Total do dia:</strong> {{ d.total.kcal|br(0) }} kcal · P {{ d.total.p|br }} g · C {{ d.total.c|br }} g · L {{ d.total.l|br }} g · Fibras {{ d.total.f|br }} g</p>
+  {% for x in comp_dias[loop.index0] %}<span class="tag {{ '' if x.status=='ok' else 'aviso' }}">{{ x.rotulo }}: {{ x.pct|br(0) }}%</span> {% endfor %}
+</section>
+{% endfor %}
+
+{% if ce.vd %}
+<section class="cartao">
+  <h2>% do Valor Diário de referência (ANVISA){{ ' — média diária' if ce.dias|length > 1 }}</h2>
+  <div class="tabela-wrap"><table class="tabela"><thead><tr><th>Nutriente</th><th>Quantidade</th><th>VDR</th><th>%VD</th></tr></thead><tbody>
+  {% for x in ce.vd %}<tr><td>{{ x.rotulo }}{{ ' ⚠' if x.parcial }}</td><td>{{ x.valor|br(1) }} {{ x.unidade }}</td><td>{{ x.vd|br(1) }} {{ x.unidade }}</td><td>{{ x.pct|br(0) }}%</td></tr>{% endfor %}
+  </tbody></table></div>
+  <p class="nota">{{ vd_fonte }}. {{ vd_nota }} ⚠ = nem todos os alimentos têm esse dado na tabela de origem. O VDR é referência de rotulagem, não a meta individual do paciente.</p>
+</section>
+{% endif %}
+
+<section class="cartao">
+  <h2>Lista de compras</h2>
+  <p class="nota">Peso bruto = peso líquido × fator de correção (quando a tabela informa). Soma de todos os dias.</p>
+  <div class="tabela-wrap"><table class="tabela"><thead><tr><th>Alimento</th><th>Grupo</th><th>Líquido (g)</th><th>Bruto (g)</th></tr></thead><tbody>
+  {% for x in compras %}<tr><td>{{ x.alimento.nome }}</td><td>{{ x.alimento.grupo or '' }}</td><td>{{ x.liquido|br(0) }}</td><td>{{ x.bruto|br(0) }}</td></tr>{% endfor %}
+  </tbody></table></div>
+</section>
+
+{% if not portal %}
+<section class="cartao">
+  <p>Visível ao paciente: <strong>{{ 'sim' if c.liberado else 'não' }}</strong>. O paciente só vê depois que você validar e liberar.</p>
+  <form method="post" action="{{ url_for('cardapio_liberar', pid=p.id, cid=c.id) }}">
+    <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+    <button class="btn" type="submit">{{ 'Ocultar do paciente' if c.liberado else 'Validar e liberar ao paciente' }}</button></form>
+</section>
+{% endif %}
+<p class="nota">Valores calculados a partir de tabelas de composição de alimentos; medidas caseiras são aproximadas. Válido após revisão do nutricionista responsável.</p>
+{% endblock %}

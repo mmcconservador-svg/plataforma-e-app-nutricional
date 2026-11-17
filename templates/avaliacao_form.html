@@ -11,9 +11,24 @@
   <label>Circunferência abdominal (cm) <input name="cintura" inputmode="decimal" required value="{{ f.get('cintura','') }}"></label>
   <label>Circunferência do quadril (cm) <input name="quadril" inputmode="decimal" required value="{{ f.get('quadril','') }}"></label>
   <label>% de gordura (se disponível) <input name="gordura_pct" inputmode="decimal" value="{{ f.get('gordura_pct','') }}"></label>
+  <label>Equação de gasto energético
+    <select name="equacao">
+      {% for k, q in Q.EQUACOES.items() %}<option value="{{ k }}" {{ 'selected' if f.get('equacao')==k }}>{{ q.nome }}{{ ' ✓' if q.status=='verificada' else '' }}</option>{% endfor %}
+    </select></label>
+  <label>Peso usado no cálculo
+    <select name="peso_base">
+      <option value="atual" {{ 'selected' if f.get('peso_base')=='atual' }}>Peso atual</option>
+      <option value="ajustado" {{ 'selected' if f.get('peso_base')=='ajustado' }}>Peso ajustado (obesidade)</option>
+      <option value="ideal" {{ 'selected' if f.get('peso_base')=='ideal' }}>Peso ideal (IMC 22)</option>
+    </select></label>
   <label>Fator de atividade
     <select name="fator" required>
-      {% for k, (rot, _v) in fatores.items() %}<option value="{{ k }}" {{ 'selected' if f.get('fator')==k }}>{{ rot }}</option>{% endfor %}
+      {% for k, v in fatores.items() %}<option value="{{ k }}" {{ 'selected' if f.get('fator')==k }}>{{ v[2] }} — {{ v[0] }}</option>{% endfor %}
+    </select></label>
+  <label>Fator personalizado (opcional, 1,0–2,5) <input name="fator_valor" inputmode="decimal" value="{{ f.get('fator_valor','') }}"></label>
+  <label>Fator de injúria
+    <select name="injuria">
+      {% for k, v in Q.FATORES_INJURIA.items() %}<option value="{{ k }}" {{ 'selected' if f.get('injuria')==k }}>{{ v[0] }}</option>{% endfor %}
     </select></label>
   <label>Objetivo (preenche uma sugestão editável)
     <select id="objetivo_preset">
@@ -31,6 +46,18 @@
   <label>% Carboidratos <input name="pct_carb" inputmode="decimal" value="{{ f.get('pct_carb',50) }}"></label>
   <label>% Proteínas <input name="pct_prot" inputmode="decimal" value="{{ f.get('pct_prot',20) }}"></label>
   <label>% Lipídios <input name="pct_lip" inputmode="decimal" value="{{ f.get('pct_lip',30) }}"></label>
+  <details class="largo cartao"><summary><strong>Composição corporal por dobras cutâneas e braço (opcional)</strong></summary>
+    <p class="nota">Dobras em mm. Preencha as do protocolo escolhido; o % de gordura calculado é usado se o campo “% de gordura” ficar vazio.</p>
+    <div class="grade">
+      <label>Protocolo
+        <select name="protocolo"><option value="">— nenhum —</option>
+          {% for k, p_ in Q.PROTOCOLOS.items() %}<option value="{{ k }}" {{ 'selected' if f.get('protocolo')==k }}>{{ p_.nome }}</option>{% endfor %}</select></label>
+      <label>Conversão densidade → %G
+        <select name="conversao"><option value="siri">Siri</option><option value="brozek" {{ 'selected' if f.get('conversao')=='brozek' }}>Brozek</option></select></label>
+      {% for k, rot in Q.DOBRAS.items() %}<label>{{ rot }} (mm) <input name="dob_{{ k }}" inputmode="decimal" value="{{ f.get('dob_' ~ k,'') }}"></label>{% endfor %}
+      <label>Circunferência do braço (cm) <input name="cb" inputmode="decimal" value="{{ f.get('cb','') }}"></label>
+      <label>Prega tricipital (mm) para CMB <input name="dct" inputmode="decimal" value="{{ f.get('dct','') }}"></label>
+    </div></details>
   <label class="largo">Observações clínicas <textarea name="observacoes" rows="3" maxlength="4000">{{ f.get('observacoes','') }}</textarea></label>
   <div class="largo"><button class="btn" type="submit">Calcular e salvar</button>
     <a class="btn sec" href="{{ url_for('paciente', pid=p.id) }}">Cancelar</a></div>

@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block title %}Novo alimento{% endblock %}
+{% block content %}
+<h1>Novo alimento próprio / suplemento</h1>
+<form method="post" class="cartao grade">
+  <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+  <label class="largo">Nome <input name="nome" required maxlength="300" value="{{ f.get('nome','') }}"></label>
+  <label>Grupo <input name="grupo" maxlength="120" value="{{ f.get('grupo','') }}"></label>
+  <label>Energia (kcal/100 g) <input name="energia_kcal" inputmode="decimal" required value="{{ f.get('energia_kcal','') }}"></label>
+  <label>Proteínas (g/100 g) <input name="proteina_g" inputmode="decimal" required value="{{ f.get('proteina_g','') }}"></label>
+  <label>Lipídios (g/100 g) <input name="lipidio_g" inputmode="decimal" required value="{{ f.get('lipidio_g','') }}"></label>
+  <label>Carboidratos (g/100 g) <input name="carbo_g" inputmode="decimal" required value="{{ f.get('carbo_g','') }}"></label>
+  <label>Fibras (g/100 g) <input name="fibra_g" inputmode="decimal" value="{{ f.get('fibra_g','') }}"></label>
+  <label>Fator de correção (bruto/líquido) <input name="fator_correcao" inputmode="decimal" value="{{ f.get('fator_correcao','') }}"></label>
+  <label class="largo">Medidas caseiras (uma por linha: descrição;gramas)
+    <textarea name="medidas" rows="4" placeholder="colher de sopa cheia;25">{{ f.get('medidas','') }}</textarea></label>
+  <div class="largo"><button class="btn" type="submit">Salvar</button> <a class="btn sec" href="{{ url_for('alimentos') }}">Cancelar</a></div>
+</form>
+<p class="nota">Use os valores do rótulo ou de fonte confiável e cite a fonte no nome. O sistema avisa se a energia não bater com os macronutrientes.</p>
+{% endblock %}

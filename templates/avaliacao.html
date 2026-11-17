@@ -34,8 +34,10 @@
   <h2>Gasto energético e metas</h2>
   <table class="tabela">
     <tbody>
-      <tr><td>TMB (Mifflin-St Jeor)</td><td>{{ r.tmb|br(0) }} kcal</td></tr>
-      <tr><td>GET = TMB × {{ r.fa|br(3) }}</td><td>{{ r.get_kcal|br(0) }} kcal</td></tr>
+      <tr><td>Equação</td><td>{{ r.equacao.nome }} <span class="tag {{ 'ok' if r.equacao.status=='verificada' else 'aviso' }}">{{ r.equacao.status }}</span></td></tr>
+      {% if r.tmb is not none %}<tr><td>TMB</td><td>{{ r.tmb|br(0) }} kcal{% if r.peso_base != 'atual' %} (peso {{ r.peso_base }}: {{ r.peso_calc|br }} kg){% endif %}</td></tr>
+      <tr><td>GET = TMB × FA {{ r.fa|br(3) }}{% if r.fator_injuria != 1 %} × injúria {{ r.fator_injuria|br(2) }}{% endif %}</td><td>{{ r.get_kcal|br(0) }} kcal</td></tr>
+      {% else %}<tr><td>GET (EER-DRI, atividade “{{ r.fa_dri }}”)</td><td>{{ r.get_kcal|br(0) }} kcal</td></tr>{% endif %}
       <tr><td>VET = GET {{ '%+d'|format(av.ajuste_kcal) }} kcal</td><td><strong>{{ r.vet|br(0) }} kcal</strong></td></tr>
       <tr><td>Carboidratos ({{ av.pct_carb|br(0) }}%)</td><td>{{ r.macros.carb_g|br(0) }} g</td></tr>
       <tr><td>Proteínas ({{ av.pct_prot|br(0) }}%)</td><td>{{ r.macros.prot_g|br(0) }} g ({{ r.prot_g_kg|br(2) }} g/kg)</td></tr>
@@ -44,6 +46,26 @@
       <tr><td>Necessidade hídrica (35 ml/kg)</td><td>{{ (r.agua_ml/1000)|br(1) }} L</td></tr>
     </tbody>
   </table>
+</section>
+{% endif %}
+
+{% if r.comparacao is defined %}
+<section class="cartao">
+  <h2>Comparação entre equações</h2>
+  <div class="tabela-wrap"><table class="tabela"><thead><tr><th>Equação</th><th>TMB (kcal)</th><th>GET (kcal)</th><th>Status</th></tr></thead><tbody>
+  {% for c in r.comparacao %}<tr><td>{{ c.nome }}</td>
+    {% if c.ok %}<td>{{ c.tmb|br(0) if c.tmb is not none else '—' }}</td><td>{{ c.get_kcal|br(0) }}</td><td>{{ c.status }}</td>
+    {% else %}<td colspan="2" class="suave">não aplicável: {{ c.motivo }}</td><td>{{ c.status }}</td>{% endif %}</tr>{% endfor %}
+  </tbody></table></div>
+  <p class="nota">Fonte da equação escolhida: {{ r.equacao.fonte }}. {{ r.equacao.nota }} “verificada” = coeficientes conferidos em fonte durante o desenvolvimento; “literatura” = fórmula clássica, conferir na fonte. Pesos: ideal {{ r.peso_ideal|br }} kg (IMC 22), ajustado {{ r.peso_ajustado|br }} kg.</p>
+</section>
+{% endif %}
+{% if r.dobras is defined or r.braco is defined %}
+<section class="cartao"><h2>Composição corporal e braço</h2>
+  <table class="tabela"><tbody>
+  {% if r.dobras is defined %}<tr><td>{{ r.dobras.protocolo_nome }}</td><td>Σ dobras {{ r.dobras.soma|br }} mm{% if r.dobras.densidade %} · densidade {{ r.dobras.densidade|br(4) }}{% endif %} · <strong>{{ r.dobras.pct|br }} % de gordura</strong></td></tr>{% endif %}
+  {% if r.braco is defined %}<tr><td>Braço</td><td>CB {{ r.braco.cb|br }} cm · CMB {{ r.braco.cmb|br }} cm · AMB {{ r.braco.amb|br }} cm² · AMBc {{ r.braco.ambc|br }} cm²</td></tr>{% endif %}
+  </tbody></table>
 </section>
 {% endif %}
 

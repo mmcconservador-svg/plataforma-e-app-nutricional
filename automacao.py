@@ -7,6 +7,7 @@
 from datetime import date, timedelta
 
 import calc
+import exames as EX
 import modulos_clinicos as MC
 
 DIAS_REAVALIACAO = 30
@@ -76,6 +77,22 @@ def insights_paciente(p, hoje=None):
         if (hoje - p.teas[0].data).days > 90:
             out.append(("info", "Avaliação alimentar TEA com mais de 90 dias: reavaliar."))
 
+    if p.exames:
+        ult = p.exames[0]
+        try:
+            import json as _json
+            meta = _json.loads(ult.resultados).get("meta_ldl")
+        except (ValueError, TypeError):
+            meta = None
+        _l, _c, achados = EX.avaliar(ult.itens, calc.idade_em(p.nascimento, ult.data_coleta), p.sexo, meta)
+        n_alerta = sum(1 for x in achados if x["nivel"] == "alerta")
+        n_atencao = sum(1 for x in achados if x["nivel"] == "atencao")
+        if n_alerta:
+            out.append(("atencao", f"Exames de {ult.data_coleta:%d/%m/%Y}: {n_alerta} achado(s) de alerta para correlação clínica/encaminhamento."))
+        if n_atencao:
+            out.append(("aviso", f"Exames de {ult.data_coleta:%d/%m/%Y}: {n_atencao} achado(s) de atenção a revisar."))
+        if (hoje - ult.data_coleta).days > 180:
+            out.append(("info", "Último exame laboratorial há mais de 6 meses: avaliar solicitação de novos exames (Recomendação CFN 005/2016)."))
     for s in p.solicitacoes:
         if s.status == "aberta":
             idade = (hoje - s.criado_em.date()).days
